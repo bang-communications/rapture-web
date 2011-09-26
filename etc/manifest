@@ -1,0 +1,4 @@
+Bundle-Classpath: .
+Bundle-Name: Rapture Web component
+Bundle-Version: 1.0.32
+Bundle-SymbolicName: rapture-web
