@@ -36,7 +36,7 @@ object Osgi {
     * a means of performing actions upon these events. */
   def trackService[Service](fn : PartialFunction[ServiceEvent[Service], Unit])
       (implicit ctx : BundleContext, mf : Manifest[Service], log : LogService) = {
-    println("Manifest "+mf.erasure.getName+".")
+    //println("Manifest "+mf.erasure.getName+".")
     val tracker = new org.osgi.util.tracker.ServiceTracker(ctx, ctx.createFilter(
         "(objectclass="+mf.erasure.getName+")"), null) {
       override def addingService(sr : ServiceReference) : Object = {

@@ -7,7 +7,7 @@ import scala.collection.mutable.ListBuffer
 
 import rapture.io._
 import rapture.orm._
-
+import rapture.interfaces._
 
 case class InitializationException(subject : String, message : String) extends RuntimeException
 
@@ -25,12 +25,15 @@ trait DatabaseService { http : Http =>
 
   def tables : List[Table[R] forSome { type R <: Record }]
 
-  def getDatabase() : DbPool = {
-    val pool = new PostgresDbPool("db.propensive.com", "db_"+raptureService.projectName,
+  def getDatabase(server : String = "db.propensive.com", migrate : Boolean = false) : DbPool = {
+    val pool = new PostgresDbPool(server, "db_"+raptureService.projectName,
         "op_"+raptureService.projectName, "pw_"+raptureService.projectName)
     pool.migrateSql(tables : _*) match {
       case Nil => log.debug("Database schema is consistent")
-      case sql => throw new InitializationException("Database does not match schema",
+      case sql =>
+        if(migrate) {
+          for(cmd <- sql) pool.acquireFor { db => Db.exec(cmd)(db) }
+        } else throw new InitializationException("Database does not match schema",
           sql.mkString("; "))
     }
     pool
@@ -99,8 +102,9 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
 
   /** Registers the servlet with the HTTP service when it becomes available, and unregisters it
     * when it ceases to be available */
-  private def registerServlet()(implicit ctx : org.osgi.framework.BundleContext, log : LogService = NoLogging) = {
+  private def registerServlet()(implicit ctx : org.osgi.framework.BundleContext, log : LogService) = {
     import org.osgi.service.http._
+    log.info("Registering servlet with Jetty")
     trackedService = Some(trackService[HttpService] {
       case Add(httpService) =>
         log.info("HTTP Service added")
@@ -129,7 +133,9 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
       raptureService.setScaleFunction(scale)
       for(code <- initCode) code()
       for(code <- startTasks) code()
-      registerServlet()(context)
+      log.info("Testing A")
+      service[org.osgi.service.http.HttpService] foreach { svc => log.info("svc = "+svc)  }
+      registerServlet()(context, log)
       status = Live
       log.debug("Cloudlet status = live")
     } catch {

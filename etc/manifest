@@ -2,7 +2,7 @@ Bundle-Classpath: .
 Bundle-Name: Rapture Web component
 Bundle-Version: 1.0.32
 Bundle-SymbolicName: rapture-web
-Export-Package: rapture.web
+Export-Package: rapture.web,rapture.svc
 Import-Package: javax.servlet,javax.servlet.http,org.apache.log4j,org.jclouds.b
  lobstore,org.jclouds.cloudservers,org.jclouds.cloudservers.domain,org.jclouds.
  cloudservers.options,org.jclouds.compute,org.jclouds.rest,org.osgi.framework,o
