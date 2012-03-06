@@ -88,7 +88,7 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
       }
       result.getOrElse(notFound(r))
     } catch {
-      case e : Exception =>
+      case e : Throwable =>
         error(r, e)
     }
   }
@@ -229,7 +229,7 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
   }
 
   /** A simple error response */
-  def error(r : Request, e : Exception)(implicit log : LogService = NoLogging) : HttpResponse = {
+  def error(r : Request, e : Throwable)(implicit log : LogService = NoLogging) : HttpResponse = {
     log.error("Exception: "+e.getMessage)
     e.getStackTrace foreach { ste => log.error("    "+ste) }
     ErrorResponse(500, Nil, Nil, "An unexpected error has occurred", "Unknown error")
