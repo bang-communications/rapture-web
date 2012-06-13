@@ -29,7 +29,7 @@ case class BufferResponse(code : Int, headers : Seq[(String, String)],
     buffers : Array[ByteBuffer]) extends HttpResponse
 case class StreamResponse(code : Int, headers : Seq[(String, String)],
     cookies : Seq[ResponseCookie], contentType : MimeTypes.MimeType,
-    send : Output[Char] => Unit) extends HttpResponse
+    encoding : Encodings.Encoding, send : Output[Char] => Unit) extends HttpResponse
 case class ErrorResponse(code : Int, headers : Seq[(String, String)],
     cookies : Seq[ResponseCookie], message : String, detail : String) extends HttpResponse
 case class FileResponse(code : Int, headers : Seq[(String, String)],

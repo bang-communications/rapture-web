@@ -127,23 +127,22 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
   final def start(context : BundleContext) = {
     try {
       status = Initializing
-      log.debug("Cloudlet status = initializing")
+      log.debug("Initializing cloudlet")
       _bundleContext = context
       raptureService = standalone.getOrElse(service[RaptureService](context, implicitly[Manifest[RaptureService]]).get)
       raptureService.setScaleFunction(scale)
       for(code <- initCode) code()
       for(code <- startTasks) code()
-      log.info("Testing A")
       service[org.osgi.service.http.HttpService] foreach { svc => log.info("svc = "+svc)  }
       registerServlet()(context, log)
       status = Live
-      log.debug("Cloudlet status = live")
+      log.debug("Cloudlet active")
     } catch {
       case InitializationException(subject, message) =>
         raptureService.postNotice(subject, message)
       case e : Exception =>
         status = FailedToStart
-        log.error("Cloudlet status = failed to start")
+        log.error("Cloudlet failed to start")
         log.exception(e)
     }
   }
@@ -169,6 +168,41 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
   def handle[T](fn : PartialFunction[Request, T])(implicit handler : Handler[T], log : LogService) =
     handlers ::= { fn andThen handler.response }
 
+  private var tests : List[Test[_]] = Nil
+  
+  abstract class Test[T](val name : String) {
+    def run() : T
+    def check(t : T) : Boolean
+    def doCheck() : Boolean = check(run())
+    tests ::= this
+  }
+
+  def test[T](name : String)(blk : => T) = new TestDef[T](name, blk)
+  
+  class TestDef[T](name : String, blk : => T) {
+    def satisfies(sat : T => Boolean) : Test[T] = new Test[T](name) {
+      def run() : T = blk
+      def check(t : T) : Boolean = sat(t)
+    }
+
+    def yields(y : T) : Test[T] = new Test[T](name) {
+      def run() : T = blk
+      def check(t : T) : Boolean = t == y
+    }
+  }
+
+  case class TestResult(name : String, success : Option[Boolean])
+
+  def runTests() = tests.reverse map { t =>
+    val tr = TestResult(t.name, try Some(t.doCheck()) catch { case e : Throwable => None })
+    val result = tr.success match {
+      case Some(true) => "[ PASS ]"
+      case Some(false) => "[ FAIL ]"
+      case None => "[ EXCP ]"
+    }
+    val desc = if(tr.name.length > 72) tr.name.substring(0, 72) else tr.name+(" "*(72 - tr.name.length))
+    log.info(desc+result)
+  }
 
   /** Provides a choice of options for how to match URL paths */
   object PathMatching extends Enumeration {
@@ -237,7 +271,7 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
 
   /** A standard implementaiton of a response which confirms cross-domain access corntrol */
   def accessControlAllowOrigin(domain : String) : HttpResponse =
-    StreamResponse(200, ("Access-Control-Allow-Origin" -> domain) :: ("Access-Control-Allow-Credentials" -> "true") :: HttpResponse.NoCache, Nil, MimeTypes.`application/xml`, v => ())
+    StreamResponse(200, ("Access-Control-Allow-Origin" -> domain) :: ("Access-Control-Allow-Credentials" -> "true") :: HttpResponse.NoCache, Nil, MimeTypes.`application/xml`, Encodings.`UTF-8`, v => ())
 
 }
 
@@ -260,7 +294,7 @@ trait Handlers {
 
   implicit val htmlHandler = new Handler[Html] {
     def response(h : Html) = StreamResponse(200, HttpResponse.NoCache, Nil,
-        MimeTypes.`text/html`, { os =>
+        MimeTypes.`text/html`, Encodings.`UTF-8`, { os =>
       h.doctype.declaration pumpTo os
       h.content.toString pumpTo os
     })
@@ -268,7 +302,7 @@ trait Handlers {
 
   implicit val charInputHandler = new Handler[Input[Char]] {
     def response(in : Input[Char]) = StreamResponse(200, HttpResponse.NoCache, Nil,
-        MimeTypes.`text/plain`, { os =>
+        MimeTypes.`text/plain`, Encodings.`UTF-8`, { os =>
       in.pumpTo(os)
       os.close()
     })
@@ -276,7 +310,7 @@ trait Handlers {
 
   implicit val xmlHandler = new Handler[Seq[Node]] {
     def response(t : Seq[Node]) = StreamResponse(200, HttpResponse.NoCache, Nil,
-        MimeTypes.`application/xml`, { os =>
+        MimeTypes.`application/xml`, Encodings.`UTF-8`, { os =>
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" pumpTo os
       t.toString pumpTo os
       os.close()
@@ -284,7 +318,7 @@ trait Handlers {
   }
   implicit val stringHandler = new Handler[String] {
     def response(t : String) = StreamResponse(200, HttpResponse.NoCache, Nil,
-        MimeTypes.`text/plain`, { os =>
+        MimeTypes.`text/plain`, Encodings.`UTF-8`, { os =>
       t pumpTo os
       os.close()
     })
@@ -303,7 +337,7 @@ trait Handlers {
 
   implicit val jsonArrayHandler = new Handler[JSONArray] {
     def response(t : JSONArray) = StreamResponse(200, HttpResponse.NoCache, Nil,
-        MimeTypes.`application/json`, { os =>
+        MimeTypes.`application/json`, Encodings.`UTF-8`, { os =>
       t.toString() pumpTo os
       os.close()
     })
@@ -311,7 +345,7 @@ trait Handlers {
   
   implicit val jsonObjectHandler = new Handler[JSONObject] {
     def response(t : JSONObject) = StreamResponse(200, HttpResponse.NoCache, Nil,
-        MimeTypes.`application/json`, { os =>
+        MimeTypes.`application/json`, Encodings.`UTF-8`, { os =>
       t.toString() pumpTo os
       os.close()
     })

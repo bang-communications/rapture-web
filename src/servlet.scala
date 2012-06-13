@@ -96,9 +96,10 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
           }
         }
         out.flush()
-      case StreamResponse(_, _, _, ct, send) =>
-        resp.setContentType(ct.name)
-        ensuring(new CharOutput(resp.getWriter))(send)(_.close())
+      case StreamResponse(_, _, _, ct, encoding, send) =>
+        resp.setContentType(ct.name+"; charset="+encoding.name)
+        val w = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(), encoding.name))
+        ensuring(new CharOutput(w))(send)(_.close())
       case ErrorResponse(code, _, _, message, _) =>
         resp.sendError(code, message)
       case FileResponse(_, _, _, ct, file) =>

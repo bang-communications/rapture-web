@@ -142,6 +142,7 @@ abstract class Request {
 
   private lazy val cookies : scala.collection.immutable.Map[String, String] = {
     var cs = scala.collection.immutable.Map[String, String]()
+    println("Headers: "+headers)
     headers.get("cookie") match {
       case Some(Seq(v)) =>
       val vs = v.split("; ")
@@ -149,7 +150,7 @@ abstract class Request {
         val kv = v.split("=", 2) 
         if(kv.length == 2) cs = cs + (kv(0).urlDecode -> kv(1).urlDecode)
       }
-      case None => ()
+      case _ => ()
     }
     cs
   }
