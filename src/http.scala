@@ -22,6 +22,31 @@ trait Cloudlet extends Http {
     }
 }
 
+trait HerokuDatabase { http : Http =>
+
+  def tables : List[Table[R] forSome { type R <: Record }]
+
+  def dbHost : String
+  def dbUser : String
+  def dbPassword : String
+  def dbPort : Int
+  def dbName : String
+
+  def getDatabase(migrate : Boolean = false) : DbPool = {
+    val pool = new PostgresDbPool(dbHost, dbName, dbUser, dbPassword, port = dbPort, ssl = true)
+    pool.migrateSql(tables : _*) match {
+      case Nil => log.debug("Database schema is consistent")
+      case sql =>
+        if(migrate) {
+          for(cmd <- sql) pool.acquireFor { db => Db.exec(cmd)(db) }
+        } else throw new InitializationException("Database does not match schema",
+          sql.mkString("; "))
+    }
+    pool
+  }
+
+}
+
 trait DatabaseService { http : Http =>
 
   def tables : List[Table[R] forSome { type R <: Record }]
@@ -65,7 +90,7 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
 
   private var _bundleContext : BundleContext = _
   private var trackedService : Option[ServiceTracker] = None
-  private var handlers : List[PartialFunction[Request, HttpResponse]] = Nil
+  private var handlers : List[PartialFunction[Request, Response]] = Nil
   private var _raptureService : RaptureService = null
   private def raptureService_=(rs : RaptureService) = _raptureService = rs
   def raptureService = _raptureService
@@ -75,8 +100,8 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
     def secureBaseUrl = ""
 
     // FIXME: Is there a better way of doing this?
-    def handle(r : Request) : HttpResponse = try {
-      var result : Option[HttpResponse] = None
+    def handle(r : Request) : Response = try {
+      var result : Option[Response] = None
       /*handlers.reverse find { pf =>
         result = pf.lift(r)
         result.isDefined
@@ -303,27 +328,27 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
   }
 
   /*8 A simple "Not found" page */
-  def notFound(r : Request)(implicit log : LogService = NoLogging) : HttpResponse = {
+  def notFound(r : Request)(implicit log : LogService = NoLogging) : Response = {
     log.info("Not found: "+r.path)
     ErrorResponse(404, Nil, Nil, "Not found", "The requested resource could not be found")
   }
 
   /** A simple error response */
-  def error(r : Request, e : Throwable)(implicit log : LogService = NoLogging) : HttpResponse = {
+  def error(r : Request, e : Throwable)(implicit log : LogService = NoLogging) : Response = {
     log.error("Exception: "+e.getMessage)
     e.getStackTrace foreach { ste => log.error("    "+ste) }
     ErrorResponse(500, Nil, Nil, "An unexpected error has occurred", "Unknown error")
   }
 
   /** A standard implementaiton of a response which confirms cross-domain access corntrol */
-  def accessControlAllowOrigin(domain : String) : HttpResponse =
-    StreamResponse(200, ("Access-Control-Allow-Origin" -> domain) :: ("Access-Control-Allow-Credentials" -> "true") :: HttpResponse.NoCache, Nil, MimeTypes.`application/xml`, Encodings.`UTF-8`, v => ())
+  def accessControlAllowOrigin(domain : String) : Response =
+    StreamResponse(200, ("Access-Control-Allow-Origin" -> domain) :: ("Access-Control-Allow-Credentials" -> "true") :: Response.NoCache, Nil, MimeTypes.`application/xml`, Encodings.`UTF-8`, v => ())
 
 }
 
 trait Handlers {
 
-  trait Handler[-T] { def response(t : T) : HttpResponse }
+  trait Handler[-T] { def response(t : T) : Response }
 
   case class Doctype(declaration : String)
 
@@ -339,7 +364,7 @@ trait Handlers {
   case class Html(content : Seq[Node], doctype : Doctype = Xhtml1Strict)
 
   implicit val htmlHandler = new Handler[Html] {
-    def response(h : Html) = StreamResponse(200, HttpResponse.NoCache, Nil,
+    def response(h : Html) = StreamResponse(200, Response.NoCache, Nil,
         MimeTypes.`text/html`, Encodings.`UTF-8`, { os =>
       h.doctype.declaration pumpTo os
       h.content.toString pumpTo os
@@ -347,7 +372,7 @@ trait Handlers {
   }
 
   implicit val charInputHandler = new Handler[Input[Char]] {
-    def response(in : Input[Char]) = StreamResponse(200, HttpResponse.NoCache, Nil,
+    def response(in : Input[Char]) = StreamResponse(200, Response.NoCache, Nil,
         MimeTypes.`text/plain`, Encodings.`UTF-8`, { os =>
       in.pumpTo(os)
       os.close()
@@ -355,7 +380,7 @@ trait Handlers {
   }
 
   implicit val xmlHandler = new Handler[Seq[Node]] {
-    def response(t : Seq[Node]) = StreamResponse(200, HttpResponse.NoCache, Nil,
+    def response(t : Seq[Node]) = StreamResponse(200, Response.NoCache, Nil,
         MimeTypes.`application/xml`, Encodings.`UTF-8`, { os =>
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" pumpTo os
       t.toString pumpTo os
@@ -363,7 +388,7 @@ trait Handlers {
     })
   }
   implicit val stringHandler = new Handler[String] {
-    def response(t : String) = StreamResponse(200, HttpResponse.NoCache, Nil,
+    def response(t : String) = StreamResponse(200, Response.NoCache, Nil,
         MimeTypes.`text/plain`, Encodings.`UTF-8`, { os =>
       t pumpTo os
       os.close()
@@ -374,7 +399,7 @@ trait Handlers {
   }
 
   implicit val fileHandler = new Handler[FileUrl] {
-    def response(file : FileUrl) = FileResponse(200, HttpResponse.NoCache, Nil,
+    def response(file : FileUrl) = FileResponse(200, Response.NoCache, Nil,
         file.extension.toList.flatMap(MimeTypes.extension).headOption.getOrElse(
 	      MimeTypes.`text/plain`), file)
   }
@@ -382,7 +407,7 @@ trait Handlers {
   import util.parsing.json._
 
   implicit val jsonArrayHandler = new Handler[JSONArray] {
-    def response(t : JSONArray) = StreamResponse(200, HttpResponse.NoCache, Nil,
+    def response(t : JSONArray) = StreamResponse(200, Response.NoCache, Nil,
         MimeTypes.`application/json`, Encodings.`UTF-8`, { os =>
       t.toString() pumpTo os
       os.close()
@@ -390,7 +415,7 @@ trait Handlers {
   }
   
   implicit val jsonObjectHandler = new Handler[JSONObject] {
-    def response(t : JSONObject) = StreamResponse(200, HttpResponse.NoCache, Nil,
+    def response(t : JSONObject) = StreamResponse(200, Response.NoCache, Nil,
         MimeTypes.`application/json`, Encodings.`UTF-8`, { os =>
       t.toString() pumpTo os
       os.close()

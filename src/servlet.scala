@@ -11,7 +11,7 @@ import rapture.io._
 abstract class ServletWrapper extends HttpServlet { wrapper =>
   def baseUrl : String
   def secureBaseUrl : String
-  def handle(req : Request) : HttpResponse
+  def handle(req : Request) : Response
 
   override def service(req : HttpServletRequest, resp : HttpServletResponse) = {
     val vReq = new Request {

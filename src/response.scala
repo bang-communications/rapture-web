@@ -5,7 +5,7 @@ import java.io._
 import rapture.io._
 
 /** A collection of standard response-related objects. */
-object HttpResponse {
+object Response {
   val NotModified = ErrorResponse(304, Nil, Nil, "Not Modified", "Resource is unchanged.")
   val Forbidden = ErrorResponse(403, Nil, Nil, "Forbidden", "Access to the requested resource is denied.")
   val NotFound = ErrorResponse(404, Nil, Nil, "Not Found", "The requested resource could not be located.")
@@ -18,7 +18,7 @@ object HttpResponse {
 }
 
 /** Basic definition for a response */
-sealed trait HttpResponse {
+sealed trait Response {
   def code : Int
   def headers : Seq[(String, String)]
   def cookies : Seq[ResponseCookie]
@@ -26,17 +26,17 @@ sealed trait HttpResponse {
 
 case class BufferResponse(code : Int, headers : Seq[(String, String)],
     cookies : Seq[ResponseCookie], contentType : MimeTypes.MimeType,
-    buffers : Array[ByteBuffer]) extends HttpResponse
+    buffers : Array[ByteBuffer]) extends Response
 case class StreamResponse(code : Int, headers : Seq[(String, String)],
     cookies : Seq[ResponseCookie], contentType : MimeTypes.MimeType,
-    encoding : Encodings.Encoding, send : Output[Char] => Unit) extends HttpResponse
+    encoding : Encodings.Encoding, send : Output[Char] => Unit) extends Response
 case class ErrorResponse(code : Int, headers : Seq[(String, String)],
-    cookies : Seq[ResponseCookie], message : String, detail : String) extends HttpResponse
+    cookies : Seq[ResponseCookie], message : String, detail : String) extends Response
 case class FileResponse(code : Int, headers : Seq[(String, String)],
     cookies : Seq[ResponseCookie], contentType : MimeTypes.MimeType,
-    file : FileUrl) extends HttpResponse
+    file : FileUrl) extends Response
 case class RedirectResponse(headers : Seq[(String, String)],
-    cookies : Seq[ResponseCookie], location : String) extends HttpResponse {
+    cookies : Seq[ResponseCookie], location : String) extends Response {
   final def code = 302
 }
 
