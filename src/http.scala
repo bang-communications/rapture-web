@@ -4,6 +4,7 @@ import org.osgi.framework._
 import org.osgi.util.tracker._
 import scala.xml._
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.ListMap
 
 import rapture.io._
 import rapture.orm._
@@ -168,41 +169,86 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
   def handle[T](fn : PartialFunction[Request, T])(implicit handler : Handler[T], log : LogService) =
     handlers ::= { fn andThen handler.response }
 
-  private var tests : List[Test[_]] = Nil
+  private val nullSuite = new Suite("Tests")
+  private var currentTestSuite : Suite = nullSuite
+  private var testSuites : ListMap[String, Suite] = ListMap()
+  
+  def setUp(blk : () => Unit) = currentTestSuite.setUp = Some(blk)
+  def tearDown(blk : () => Unit) = currentTestSuite.setUp = Some(blk)
+  
+  def suite(name : String)(blk : => Unit) = {
+    val s = new Suite(name)
+    currentTestSuite = s
+    blk
+    currentTestSuite = nullSuite
+    testSuites(s.name) = s
+  }
+
+  def test[T](name : String)(blk : => T) = new TestDef[T](name, blk)
   
   abstract class Test[T](val name : String) {
     def run() : T
     def check(t : T) : Boolean
     def doCheck() : Boolean = check(run())
-    tests ::= this
   }
 
-  def test[T](name : String)(blk : => T) = new TestDef[T](name, blk)
-  
+  class Suite(val name : String) {
+    var setUp : Option[() => Unit] = None
+    val tests : ListMap[String, Test[_]] = ListMap()
+    var tearDown : Option[() => Unit] = None
+    def run() : Int = {
+      var success = 0
+      setUp.foreach(_())
+      tests foreach { case (tn, t) =>
+        val tr = TestResult(tn, try Some(t.doCheck()) catch { case e : Throwable => None })
+        val result = tr.success match {
+          case Some(true) =>
+            success += 1
+            "[ PASS ]"
+          case Some(false) => "[ FAIL ]"
+          case None => "[ ERR  ]"
+        }
+        val desc = if(tn.length > 70) tn.substring(0, 70) else tn+(" "*(70 - tn.length))
+        log.info("  "+desc+result)
+      }
+      tearDown.foreach(_())
+      success
+    }
+  }
+
   class TestDef[T](name : String, blk : => T) {
-    def satisfies(sat : T => Boolean) : Test[T] = new Test[T](name) {
-      def run() : T = blk
-      def check(t : T) : Boolean = sat(t)
+
+    def satisfies(sat : T => Boolean) : Test[T] = {
+      val t = new Test[T](name) {
+        def run() : T = blk
+        def check(t : T) : Boolean = sat(t)
+      }
+      currentTestSuite.tests(name) = t
+      t
     }
 
-    def yields(y : T) : Test[T] = new Test[T](name) {
-      def run() : T = blk
-      def check(t : T) : Boolean = t == y
+    def yields(y : T) : Test[T] = {
+      val t = new Test[T](name) {
+        def run() : T = blk
+        def check(t : T) : Boolean = t == y
+      }
+      currentTestSuite.tests(name) = t
+      t
     }
   }
 
   case class TestResult(name : String, success : Option[Boolean])
 
-  def runTests() = tests.reverse map { t =>
-    val tr = TestResult(t.name, try Some(t.doCheck()) catch { case e : Throwable => None })
-    val result = tr.success match {
-      case Some(true) => "[ PASS ]"
-      case Some(false) => "[ FAIL ]"
-      case None => "[ EXCP ]"
+  def runAllSuites() = {
+    nullSuite.run()
+    testSuites foreach { case (n, ts) =>
+      log.info(n+":")
+      ts.run()
     }
-    val desc = if(tr.name.length > 72) tr.name.substring(0, 72) else tr.name+(" "*(72 - tr.name.length))
-    log.info(desc+result)
   }
+
+  def listSuites() = testSuites.keys.toList
+  def listTests(suite : String) = testSuites.get(suite).map(_.tests.map(_._2)).flatten
 
   /** Provides a choice of options for how to match URL paths */
   object PathMatching extends Enumeration {
