@@ -224,16 +224,16 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
     def run() : Int = {
       var success = 0
       setUp.foreach(_())
-      tests foreach { case (tn, t) =>
+      tests.toList.reverse foreach { case (tn, t) =>
         val tr = TestResult(tn, try Some(t.doCheck()) catch { case e : Throwable => None })
         val result = tr.success match {
           case Some(true) =>
             success += 1
-            "[ PASS ]"
-          case Some(false) => "[ FAIL ]"
-          case None => "[ ERR  ]"
+            "[SUCCESS]"
+          case Some(false) => "[FAILURE]"
+          case None => "[ ERROR ]"
         }
-        val desc = if(tn.length > 70) tn.substring(0, 70) else tn+(" "*(70 - tn.length))
+        val desc = if(tn.length > 64) tn.substring(0, 64) else tn+(" "*(64 - tn.length))
         log.info("  "+desc+result)
       }
       tearDown.foreach(_())
@@ -252,7 +252,7 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
       t
     }
 
-    def yields(y : T) : Test[T] = {
+    def yields(y : => T) : Test[T] = {
       val t = new Test[T](name) {
         def run() : T = blk
         def check(t : T) : Boolean = t == y
@@ -266,7 +266,7 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
 
   def runAllSuites() = {
     nullSuite.run()
-    testSuites foreach { case (n, ts) =>
+    testSuites.toList.reverse foreach { case (n, ts) =>
       log.info(n+":")
       ts.run()
     }
@@ -341,8 +341,8 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
   }
 
   /** A standard implementaiton of a response which confirms cross-domain access corntrol */
-  def accessControlAllowOrigin(domain : String) : Response =
-    StreamResponse(200, ("Access-Control-Allow-Origin" -> domain) :: ("Access-Control-Allow-Credentials" -> "true") :: Response.NoCache, Nil, MimeTypes.`application/xml`, Encodings.`UTF-8`, v => ())
+  def accessControlAllowOrigin(domain : String)(implicit enc : Encodings.Encoding) : Response =
+    StreamResponse(200, ("Access-Control-Allow-Origin" -> domain) :: ("Access-Control-Allow-Credentials" -> "true") :: Response.NoCache, Nil, MimeTypes.`application/xml`, v => ())
 
 }
 
@@ -363,33 +363,33 @@ trait Handlers {
 
   case class Html(content : Seq[Node], doctype : Doctype = Xhtml1Strict)
 
-  implicit val htmlHandler = new Handler[Html] {
+  implicit def htmlHandler(implicit enc : Encodings.Encoding) = new Handler[Html] {
     def response(h : Html) = StreamResponse(200, Response.NoCache, Nil,
-        MimeTypes.`text/html`, Encodings.`UTF-8`, { os =>
+        MimeTypes.`text/html`, { os =>
       h.doctype.declaration pumpTo os
       h.content.toString pumpTo os
     })
   }
 
-  implicit val charInputHandler = new Handler[Input[Char]] {
+  implicit def charInputHandler(implicit enc : Encodings.Encoding) = new Handler[Input[Char]] {
     def response(in : Input[Char]) = StreamResponse(200, Response.NoCache, Nil,
-        MimeTypes.`text/plain`, Encodings.`UTF-8`, { os =>
+        MimeTypes.`text/plain`, { os =>
       in.pumpTo(os)
       os.close()
     })
   }
 
-  implicit val xmlHandler = new Handler[Seq[Node]] {
+  implicit def xmlHandler(implicit enc : Encodings.Encoding) = new Handler[Seq[Node]] {
     def response(t : Seq[Node]) = StreamResponse(200, Response.NoCache, Nil,
-        MimeTypes.`application/xml`, Encodings.`UTF-8`, { os =>
+        MimeTypes.`application/xml`, { os =>
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" pumpTo os
       t.toString pumpTo os
       os.close()
     })
   }
-  implicit val stringHandler = new Handler[String] {
+  implicit def stringHandler(implicit enc : Encodings.Encoding) = new Handler[String] {
     def response(t : String) = StreamResponse(200, Response.NoCache, Nil,
-        MimeTypes.`text/plain`, Encodings.`UTF-8`, { os =>
+        MimeTypes.`text/plain`, { os =>
       t pumpTo os
       os.close()
     })
@@ -398,7 +398,7 @@ trait Handlers {
     def response(path : NetUrl[_]) = RedirectResponse(Nil, Nil, path.toString)
   }
 
-  implicit val fileHandler = new Handler[FileUrl] {
+  implicit def fileHandler = new Handler[FileUrl] {
     def response(file : FileUrl) = FileResponse(200, Response.NoCache, Nil,
         file.extension.toList.flatMap(MimeTypes.extension).headOption.getOrElse(
 	      MimeTypes.`text/plain`), file)
@@ -406,17 +406,17 @@ trait Handlers {
 
   import util.parsing.json._
 
-  implicit val jsonArrayHandler = new Handler[JSONArray] {
+  implicit def jsonArrayHandler(implicit enc : Encodings.Encoding) = new Handler[JSONArray] {
     def response(t : JSONArray) = StreamResponse(200, Response.NoCache, Nil,
-        MimeTypes.`application/json`, Encodings.`UTF-8`, { os =>
+        MimeTypes.`application/json`, { os =>
       t.toString() pumpTo os
       os.close()
     })
   }
   
-  implicit val jsonObjectHandler = new Handler[JSONObject] {
+  implicit def jsonObjectHandler(implicit enc : Encodings.Encoding) = new Handler[JSONObject] {
     def response(t : JSONObject) = StreamResponse(200, Response.NoCache, Nil,
-        MimeTypes.`application/json`, Encodings.`UTF-8`, { os =>
+        MimeTypes.`application/json`, { os =>
       t.toString() pumpTo os
       os.close()
     })

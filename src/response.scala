@@ -29,7 +29,9 @@ case class BufferResponse(code : Int, headers : Seq[(String, String)],
     buffers : Array[ByteBuffer]) extends Response
 case class StreamResponse(code : Int, headers : Seq[(String, String)],
     cookies : Seq[ResponseCookie], contentType : MimeTypes.MimeType,
-    encoding : Encodings.Encoding, send : Output[Char] => Unit) extends Response
+    send : Output[Char] => Unit)(implicit enc : Encodings.Encoding) extends Response {
+  def encoding = enc
+}
 case class ErrorResponse(code : Int, headers : Seq[(String, String)],
     cookies : Seq[ResponseCookie], message : String, detail : String) extends Response
 case class FileResponse(code : Int, headers : Seq[(String, String)],
