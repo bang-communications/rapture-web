@@ -252,6 +252,15 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
       t
     }
 
+    def throwsException() : Test[Boolean] = {
+      val t = new Test[Boolean](name) {
+        def run() : Boolean = try { blk; false } catch { case e : Exception => true }
+        def check(t : Boolean) : Boolean = t
+      }
+      currentTestSuite.tests(name) = t
+      t
+    }
+
     def yields(y : => T) : Test[T] = {
       val t = new Test[T](name) {
         def run() : T = blk
