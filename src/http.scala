@@ -225,7 +225,7 @@ trait Http extends DelayedInit with Handlers with BundleActivator { main : Bundl
       var success = 0
       setUp.foreach(_())
       tests.toList.reverse foreach { case (tn, t) =>
-        val tr = TestResult(tn, try Some(t.doCheck()) catch { case e : Throwable => None })
+        val tr = TestResult(tn, try Some(t.doCheck()) catch { case e : Throwable => log.exception(e); None })
         val result = tr.success match {
           case Some(true) =>
             success += 1
