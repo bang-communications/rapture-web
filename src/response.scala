@@ -19,28 +19,28 @@ object Response {
 
 /** Basic definition for a response */
 sealed trait Response {
-  def code : Int
-  def headers : Seq[(String, String)]
-  def cookies : Seq[ResponseCookie]
+  def code: Int
+  def headers: Seq[(String, String)]
+  def cookies: Seq[ResponseCookie]
 }
 
-case class BufferResponse(code : Int, headers : Seq[(String, String)],
-    cookies : Seq[ResponseCookie], contentType : MimeTypes.MimeType,
-    buffers : Array[ByteBuffer]) extends Response
-case class StreamResponse(code : Int, headers : Seq[(String, String)],
-    cookies : Seq[ResponseCookie], contentType : MimeTypes.MimeType,
-    send : Output[Char] => Unit)(implicit enc : Encodings.Encoding) extends Response {
+case class BufferResponse(code: Int, headers: Seq[(String, String)],
+    cookies: Seq[ResponseCookie], contentType: MimeTypes.MimeType,
+    buffers: Array[ByteBuffer]) extends Response
+case class StreamResponse(code: Int, headers: Seq[(String, String)],
+    cookies: Seq[ResponseCookie], contentType: MimeTypes.MimeType,
+    send: Output[Char] => Unit)(implicit enc: Encodings.Encoding) extends Response {
   def encoding = enc
 }
-case class ErrorResponse(code : Int, headers : Seq[(String, String)],
-    cookies : Seq[ResponseCookie], message : String, detail : String) extends Response
-case class FileResponse(code : Int, headers : Seq[(String, String)],
-    cookies : Seq[ResponseCookie], contentType : MimeTypes.MimeType,
-    file : FileUrl) extends Response
-case class RedirectResponse(headers : Seq[(String, String)],
-    cookies : Seq[ResponseCookie], location : String) extends Response {
+case class ErrorResponse(code: Int, headers: Seq[(String, String)],
+    cookies: Seq[ResponseCookie], message: String, detail: String) extends Response
+case class FileResponse(code: Int, headers: Seq[(String, String)],
+    cookies: Seq[ResponseCookie], contentType: MimeTypes.MimeType,
+    file: FileUrl) extends Response
+case class RedirectResponse(headers: Seq[(String, String)],
+    cookies: Seq[ResponseCookie], location: String) extends Response {
   final def code = 302
 }
 
-case class ResponseCookie(domain : String, expires : Option[Long], name : String,
-    path : String, secure : Boolean, value : String)
+case class ResponseCookie(domain: String, expires: Option[Long], name: String,
+    path: String, secure: Boolean, value: String)

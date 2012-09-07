@@ -9,11 +9,16 @@ import rapture.io._
 /** Extend this to implement a Servlet. */
 // FIXME: Needs a bit of work
 abstract class ServletWrapper extends HttpServlet { wrapper =>
-  def baseUrl : String
-  def secureBaseUrl : String
-  def handle(req : Request) : Response
+  implicit val zone = Zone("servlet")
+  
+  def baseUrl: String
+  def secureBaseUrl: String
+  def handle(req: Request): Response
 
-  override def service(req : HttpServletRequest, resp : HttpServletResponse) = {
+  @inline def fromNull[T](t: T): Option[T] = if(t == null) None else Some(t)
+
+  override def service(req: HttpServletRequest, resp: HttpServletResponse) = {
+    val t0 = System.currentTimeMillis
     val vReq = new Request {
       def contentLength = req.getContentLength
       def queryString = req.getQueryString
@@ -47,16 +52,18 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
           content.append("Data: "+x+" -> "+x.toChar+"\n")
           x = in.read()
         }*/
-        in.pumpTo(content)
-        content.toString
+        implicit val impl = rapture.io.StringCharReader
+        implicit val ca = rapture.io.CharAccumulator
+        implicit val enc = Encodings.`UTF-8`
+        new CharInput(in).slurp()
       }
       lazy val headers = new scala.collection.immutable.HashMap[String, Seq[String]] {
-        private def enum2list(e : java.util.Enumeration[_]) = {
+        private def enum2list(e: java.util.Enumeration[_]) = {
           val lb = new ListBuffer[String]
           while(e.hasMoreElements) lb += e.nextElement.asInstanceOf[String]
           lb
         }
-        override def get(key : String) = Some(enum2list(req.getHeaders(key)))
+        override def get(key: String) = Some(enum2list(req.getHeaders(key)))
         override def size = enum2list(req.getHeaderNames).length
         override def iterator = enum2list(req.getHeaderNames).map(n => (n, enum2list(req.getHeaders(n)))).iterator
       }
@@ -82,7 +89,7 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
       case BufferResponse(_, _, _, ct, buffers) =>
         resp.setContentType(ct.name)
         val out = resp.getOutputStream
-        var spare : ByteBuffer = null
+        var spare: ByteBuffer = null
         for(b <- buffers) {
           if(b.hasArray) {
             out.write(b.array, b.arrayOffset, b.limit)
@@ -108,11 +115,13 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
         resp.setContentType(ct.name)
         resp.setContentLength(file.length.toInt)
         val out = new ByteOutput(resp.getOutputStream)
-        file pumpTo out
+        implicit val ca = rapture.io.FileStreamByteReader
+        file > out
         out.flush()
       case RedirectResponse(_, _, location) =>
         resp.sendRedirect(location)
     }
+    rapture.io.log.debug("Request handled in "+(System.currentTimeMillis - t0)+"ms")
     r
   }
 }
