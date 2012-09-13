@@ -110,6 +110,8 @@ abstract class Request {
     pm
   }
 
+  def parameterMap: Map[String, String] = pmap.toMap
+
   /** Checks for the existence of a named request param. */
   def exists(k: String): Boolean = pmap.contains(k)
 

@@ -14,6 +14,8 @@ case class InitializationException(subject: String, message: String) extends Run
 /** This trait provides a nice interface to the HTTP server */
 trait HttpServer extends DelayedInit with BundleActivator with Handlers {
 
+  implicit val zone = Zone("web")
+  
   import Osgi._
 
   def onStart(block: => Unit) =
@@ -29,6 +31,8 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
   private var _bundleContext: BundleContext = _
   private var trackedService: Option[ServiceTracker] = None
   private var handlers: List[PartialFunction[Request, Response]] = Nil
+  private var errorHandler: Option[PartialFunction[(Request, Throwable), Response]] = None
+  private var notFoundHandler: Option[PartialFunction[Request, Response]] = None
 
   private val httpServlet = new ServletWrapper {
     def baseUrl = ""
@@ -60,9 +64,10 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
             }) result = Some(error(r, e))
         }
       }
-      result.getOrElse(notFound(r))
+      result.orElse(notFoundHandler.map(_(r))).getOrElse(notFound(r))
     } catch {
-      case e: Throwable => error(r, e)
+      case e: Throwable =>
+        error(r, e)
     }
   }
  
@@ -96,7 +101,6 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
       registerServlet()
     } catch {
       case e: Exception =>
-        implicit val logZone = Zone("web")
         log.error("Failed to start: ")
         log.exception(e)
     }
@@ -110,7 +114,17 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
   
   /** Method to allow registration of handlers for requests matching different conditions */
   def handle[T](fn: PartialFunction[Request, T])(implicit handler: Handler[T]) =
-    handlers::= { fn andThen handler.response }
+    handlers ::= { fn andThen handler.response }
+
+  def respond[T](t: T)(implicit handler: Handler[T]) = handler.response(t)
+
+  def handleError[T](fn: PartialFunction[(Request, Throwable), T])(implicit handler: Handler[T]) = {
+    errorHandler = Some({ fn andThen handler.response })
+  }
+
+  def handleNotFound[T](fn: PartialFunction[Request, T])(implicit handler: Handler[T]) = {
+    notFoundHandler = Some({ fn andThen handler.response })
+  }
 
   /** Provides a choice of options for how to match URL paths */
   object PathMatching extends Enumeration {
@@ -172,9 +186,17 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
 
   /** A simple error response */
   def error(r: Request, e: Throwable): Response = {
-    //log.error("Exception: "+e.getMessage)
-    e.getStackTrace foreach { ste => /*log.error("    "+ste)*/ () }
-    ErrorResponse(500, Nil, Nil, "An unexpected error has occurred", "Unknown error")
+    log.error(e.getMessage)
+    log.exception(e)
+    try {
+      errorHandler.map(_(r, e)) getOrElse {
+        ErrorResponse(500, Nil, Nil, "An unexpected error has occurred", "Unknown error")
+      }
+    } catch { case e: Exception =>
+      log.error("Further error occurred whilst handling error page: "+e.getMessage)
+      log.exception(e)
+      ErrorResponse(500, Nil, Nil, "An unexpected error has occurred", "Unknown error")
+    }
   }
 
   /** A standard implementaiton of a response which confirms cross-domain access corntrol */
@@ -226,6 +248,10 @@ trait Handlers { this: HttpServer =>
     def response(path: NetUrl[_]) = RedirectResponse(Nil, Nil, path.toString)
   }
 
+  implicit val pathRedirectHandler = new Handler[Path] {
+    def response(path: Path) = RedirectResponse(Nil, Nil, path.toString)
+  }
+
   implicit def fileHandler = new Handler[FileUrl] {
     def response(file: FileUrl) = FileResponse(200, Response.NoCache, Nil,
         file.extension.toList.flatMap(MimeTypes.extension).headOption.getOrElse(
@@ -233,6 +259,10 @@ trait Handlers { this: HttpServer =>
   }
 
   import util.parsing.json._
+
+  implicit val nullHandler = new Handler[Response] {
+    def response(r: Response) = r
+  }
 
   implicit def jsonArrayHandler(implicit enc: Encodings.Encoding) = new Handler[JSONArray] {
     def response(t: JSONArray) = StreamResponse(200, Response.NoCache, Nil,
