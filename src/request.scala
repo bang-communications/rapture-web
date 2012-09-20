@@ -95,7 +95,7 @@ abstract class Request {
   val time: Long = System.currentTimeMillis
 
   /** The path of the script */
-  lazy val path: SimplePath = new SimplePath((servicePathString+remainderString).replaceAll("^\\/", "").split("\\/").filter(_ != "")) {
+  lazy val path: SimplePath = new SimplePath((servicePathString+remainderString).replaceAll("^\\/", "").split("\\/").filter(_ != ""), "") {
     val params = Nil
   }
 
@@ -110,7 +110,7 @@ abstract class Request {
     pm
   }
 
-  def parameterMap: Map[String, String] = pmap.toMap
+  lazy val parameterMap: Map[String, String] = pmap.toMap
 
   /** Checks for the existence of a named request param. */
   def exists(k: String): Boolean = pmap.contains(k)
