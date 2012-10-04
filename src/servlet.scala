@@ -22,8 +22,9 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
     val vReq = try {
       new Request {
         def contentType = {
-          val ct = req.getContentType.split(";").head
-          MimeTypes.fromString(ct).getOrElse(MimeTypes.MimeType(ct))
+          val ct = req.getContentType
+          val ct2 = if(ct == null) "application/x-www-form-urlencoded" else ct.split(";").head
+          MimeTypes.fromString(ct2).getOrElse(MimeTypes.MimeType(ct2))
         }
         def contentLength = req.getContentLength
         def queryString = req.getQueryString
