@@ -2,7 +2,7 @@ package rapture.web
 import javax.servlet.http._
 import java.nio.ByteBuffer
 import java.io._
-import scala.collection.mutable._
+import scala.collection.mutable.{Map => _, _}
 import rapture.io._
 
 
@@ -39,7 +39,9 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
         def baseUrl = wrapper.baseUrl
         def secureBaseUrl = wrapper.secureBaseUrl
         
-        lazy val fileUploads = HashMap[String, Array[Byte]]()
+        var uploadsValue: Map[String, Array[Byte]] = Map[String, Array[Byte]]()
+
+        def fileUploads: Map[String, Array[Byte]] = uploadsValue
 
         private def stripQuotes(s: String) = if(s.startsWith("\"")) s.substring(1, s.length - 1) else s
 
@@ -52,7 +54,7 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
             while(mpr.ready()) {
               mpr.read() foreach { m =>
                 if(m.filename.isDefined) {
-                  fileUploads(stripQuotes(m.name.get)) = m.data
+                  uploadsValue += stripQuotes(m.name.get) -> m.data
                   params += Request.StringQueryParam(stripQuotes(m.name.get), stripQuotes(m.filename.get))
                 } else params += new Request.StringQueryParam(m.name.get,
                     new String(m.data, fromNull(req.getCharacterEncoding).getOrElse("ASCII")))

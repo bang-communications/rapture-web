@@ -67,7 +67,7 @@ abstract class Request {
   /** Array of all query and POST parameters in order. */
   def params: Seq[Request.QueryParam]
 
-  def fileUploads: HashMap[String, Array[Byte]]
+  def fileUploads: Map[String, Array[Byte]]
 
   /** Request headers. */
   def headers: Map[String, Seq[String]]
