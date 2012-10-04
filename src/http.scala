@@ -135,7 +135,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
 
   /** Options regarding how pattern matching should work on requests */
   trait RequestOptions {
-    def httpMethods: List[Request.Method]
+    def httpMethods: List[HttpMethods.Method]
     def pathMatching: PathMatching.Value
     def validate(r: Request) =
       httpMethods.contains(r.requestMethod) && (pathMatching match {
@@ -147,7 +147,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
 
   /** Provide a default implementation of RequestOptions */
   implicit object DefaultRequestOptions extends RequestOptions {
-    def httpMethods: List[Request.Method] = List(Request.Get, Request.Post)
+    def httpMethods: List[HttpMethods.Method] = List(HttpMethods.Get, HttpMethods.Post)
     def pathMatching = PathMatching.IgnoreTrailingSlash
   }
 

@@ -21,9 +21,13 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
     val t0 = System.currentTimeMillis
     val vReq = try {
       new Request {
+        def contentType = {
+          val ct = req.getContentType.split(";").head
+          MimeTypes.fromString(ct).getOrElse(MimeTypes.MimeType(ct))
+        }
         def contentLength = req.getContentLength
         def queryString = req.getQueryString
-        def requestMethod = Request.method(req.getMethod)
+        def requestMethod = HttpMethods.method(req.getMethod)
         def scriptName = req.getRequestURI
         def https = req.isSecure
         def serverName = req.getServerName
@@ -34,30 +38,56 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
         def remainderString = fromNull(req.getPathInfo).getOrElse("")
         def baseUrl = wrapper.baseUrl
         def secureBaseUrl = wrapper.secureBaseUrl
-        lazy val params = {
-          //FIXME: Allow FileUpload
-          val params = new ListBuffer[Request.QueryParam]
-          val enum = req.getParameterNames
-          while(enum.hasMoreElements) {
-            val name = enum.nextElement.asInstanceOf[String]
-            for(value <- req.getParameterValues(name))
-              params += new Request.StringQueryParam(name, value)
-          }
-          params.toList
+        
+        lazy val fileUploads = HashMap[String, Array[Byte]]()
+
+        private def stripQuotes(s: String) = if(s.startsWith("\"")) s.substring(1, s.length - 1) else s
+
+        val params = contentType match {
+          case MimeTypes.`multipart/form-data` =>
+            val params = new ListBuffer[Request.QueryParam]
+            val ct = headers("Content-Type").head.split("; *")
+            val boundary = ct.find(_.startsWith("boundary=")).get.substring(9)
+            val mpr = new MultipartReader(boundary, req.getInputStream)
+            while(mpr.ready()) {
+              mpr.read() foreach { m =>
+                if(m.filename.isDefined) {
+                  fileUploads(stripQuotes(m.name.get)) = m.data
+                  params += Request.StringQueryParam(stripQuotes(m.name.get), stripQuotes(m.filename.get))
+                } else params += new Request.StringQueryParam(m.name.get,
+                    new String(m.data, fromNull(req.getCharacterEncoding).getOrElse("ASCII")))
+              }
+            }
+            params.toList
+          
+          case MimeTypes.`application/x-www-form-urlencoded` =>
+            val params = new ListBuffer[Request.QueryParam]
+            val enum = req.getParameterNames
+            while(enum.hasMoreElements) {
+              val name = enum.nextElement.asInstanceOf[String]
+              for(value <- req.getParameterValues(name))
+                params += new Request.StringQueryParam(name, value)
+            }
+            params.toList
         }
-        lazy val body = {
-          val content = new java.io.StringWriter
-          val in = req.getReader
-          /*var x = in.read()
-          while(x > 0) {
-            content.append("Data: "+x+" -> "+x.toChar+"\n")
-            x = in.read()
-          }*/
+
+        private val input = {
+          val in = req.getInputStream
           implicit val impl = rapture.io.StringCharReader
-          implicit val ca = rapture.io.CharAccumulator
           implicit val enc = Encodings.`UTF-8`
-          new CharInput(in).slurp()
+          inputStreamCharBuilder.input(in)
         }
+
+        lazy val body =
+          if(streamRead) throw new Exception("Stream has already been read")
+          else {
+            implicit val impl = rapture.io.StringCharReader
+            implicit val ca = rapture.io.CharAccumulator
+            implicit val enc = Encodings.`UTF-8`
+            streamRead = true
+            input.slurp()
+          }
+
         lazy val headers = new scala.collection.immutable.HashMap[String, Seq[String]] {
           private def enum2list(e: java.util.Enumeration[_]) = {
             val lb = new ListBuffer[String]

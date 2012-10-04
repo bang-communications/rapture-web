@@ -12,24 +12,6 @@ object Request {
   case class XmlQueryParam(value: scala.xml.Node) extends QueryParam { def name = "XML" }
   case class FileQueryParam(name: String, localFile: File)(val clientFilename: String, val contentType: MimeTypes.MimeType) extends QueryParam
 
-  private val methods = new HashMap[String, Method]
-  sealed class Method(val string: String) {
-    def unapply(r: Request) = r.requestMethod.string == string
-    methods += string -> this
-  }
-
-  def method(s: String) = methods(s)
-
-  val Get = new Method("GET")
-  val Put = new Method("PUT")
-  val Post = new Method("POST")
-  val Delete = new Method("DELETE")
-  val Trace = new Method("TRACE")
-  val Options = new Method("OPTIONS")
-  val Head = new Method("HEAD")
-  val Connect = new Method("CONNECT")
-  val Patch = new Method("PATCH")
-  
 }
 
 /** Represents an HTTP request. */
@@ -42,7 +24,7 @@ abstract class Request {
   def queryString: String
 
   /** The HTTP method, e.g. GET or POST, etc. */
-  def requestMethod: Request.Method
+  def requestMethod: HttpMethods.Method
 
   /** The virtual path, i.e. the part of the URL following the hostname, not
    *  including any query parameters. Always starts with a slash. */
@@ -85,6 +67,8 @@ abstract class Request {
   /** Array of all query and POST parameters in order. */
   def params: Seq[Request.QueryParam]
 
+  def fileUploads: HashMap[String, Array[Byte]]
+
   /** Request headers. */
   def headers: Map[String, Seq[String]]
 
@@ -98,6 +82,8 @@ abstract class Request {
   lazy val path: SimplePath = new SimplePath((servicePathString+remainderString).replaceAll("^\\/", "").split("\\/").filter(_ != ""), "") {
     val params = Nil
   }
+
+  protected var streamRead = false
 
   lazy val remainder: List[String] = remainderString.split("\\/").toList
 
@@ -113,7 +99,7 @@ abstract class Request {
   lazy val parameterMap: Map[String, String] = pmap.toMap
 
   /** Checks for the existence of a named request param. */
-  def exists(k: String): Boolean = pmap.contains(k)
+  def exists(k: Symbol): Boolean = pmap.contains(k.name)
 
   /** Gets a named request param (which must exist). */
   def apply(k: String): String = pmap.get(k) match {
