@@ -57,7 +57,7 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
                 if(m.filename.isDefined) {
                   uploadsValue += stripQuotes(m.name.get) -> m.data
                   params += Request.StringQueryParam(stripQuotes(m.name.get), stripQuotes(m.filename.get))
-                } else params += new Request.StringQueryParam(m.name.get,
+                } else params += new Request.StringQueryParam(stripQuotes(m.name.get),
                     new String(m.data, fromNull(req.getCharacterEncoding).getOrElse("ASCII")))
               }
             }
