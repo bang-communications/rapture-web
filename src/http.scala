@@ -151,6 +151,13 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
     def pathMatching = PathMatching.IgnoreTrailingSlash
   }
 
+  trait ExtractorParser[T] { def parse(s: String): Option[T] }
+  implicit val IntExtractorParser = new ExtractorParser[Int] { def parse(s: String): Option[Int] = try Some(s.toInt) catch { case e: Exception => None } }
+
+  object As { def unapply[T](s: String)(implicit parser: ExtractorParser[T]): Option[T] = parser.parse(s) }
+
+  object AsInt { def unapply(s: String): Option[Int] = try Some(s.toInt) catch { case e: Exception => None } }
+
   /** Extract the path from the request */
   object Path { def unapply(r: Request): Option[rapture.io.Path] = Some(r.path) }
 
