@@ -2,9 +2,10 @@ package rapture.web
 
 import language._
 
-import scala.collection.mutable.HashMap
+import scala.collection.mutable.{HashMap, ListBuffer}
 import java.io._
 import rapture.io._
+import Time._
 
 object Request {
   sealed trait QueryParam { def name: String }
@@ -108,13 +109,13 @@ abstract class Request {
   }
 
   /** Gets a named request param or returns the default. */
-  def param(k: String, default: String): String = pmap.get(k) match {
+  def param(k: Symbol, default: String): String = pmap.get(k.name) match {
     case Some(v) => v
     case None => default
   }
 
   /** Gets a named request param which may not exist. */
-  def param(k: String): Option[String] = pmap.get(k)
+  def param(k: Symbol): Option[String] = pmap.get(k.name)
 
   /*private var xmlSet = false
   private var _xml: Option[Node] = None
@@ -146,4 +147,11 @@ abstract class Request {
     }
     cs
   }
+
+  val responseCookies: ListBuffer[(String, String, String, String, Option[Long])] =
+    new ListBuffer[(String, String, String, String, Option[Long])]
+
+  def setCookie(name: Symbol, value: String, domain: String = serverName, path: SimplePath = ^, expiry: Option[DateTime]) = 
+    responseCookies += ((name.name, value, domain, path.toString, expiry.map(_.toLong)))
+
 }

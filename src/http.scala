@@ -158,7 +158,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
   object & { def unapply(r: Request) = Some((r, r)) }
 
   /** Method for creating new parameter extractors for requests */
-  def withParam(p: String) = new { def unapply(r: Request): Option[String] = r.param(p) }
+  def withParam(p: Symbol) = new { def unapply(r: Request): Option[String] = r.param(p) }
 
   /** Method for producing new cookie extractors for requests */
   def withCookie(c: String) = new {
