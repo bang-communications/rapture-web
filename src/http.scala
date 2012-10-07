@@ -244,10 +244,7 @@ trait Handlers { this: HttpServer =>
       os.close()
     })
   }
-  implicit val redirectHandler = new Handler[NetUrl[_]] {
-    def response(path: NetUrl[_]) = RedirectResponse(Nil, Nil, path.toString)
-  }
-
+  
   implicit val pathRedirectHandler = new Handler[Path] {
     def response(path: Path) = RedirectResponse(Nil, Nil, path.toString)
   }
