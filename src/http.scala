@@ -6,16 +6,27 @@ import scala.xml._
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.ListMap
 
+import javax.servlet.http._
+
 import rapture.io._
 import rapture.html._
 
 case class InitializationException(subject: String, message: String) extends RuntimeException
 
+trait BasicRequests { this: HttpServer =>
+  type WebRequest = BasicRequest
+  def makeRequest(req: HttpServletRequest, resp: HttpServletResponse) = new BasicRequest(req, resp)
+}
+
 /** This trait provides a nice interface to the HTTP server */
-trait HttpServer extends DelayedInit with BundleActivator with Handlers {
+trait HttpServer extends DelayedInit with BundleActivator with Handlers with Servlets {
+
+  type WebRequest <: Request
 
   implicit val zone = Zone("web")
-  
+
+  def makeRequest(req: HttpServletRequest, resp: HttpServletResponse): WebRequest
+
   import Osgi._
 
   def onStart(block: => Unit) =
@@ -30,15 +41,15 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
 
   private var _bundleContext: BundleContext = _
   private var trackedService: Option[ServiceTracker] = None
-  private var handlers: List[PartialFunction[Request, Response]] = Nil
-  private var errorHandler: Option[PartialFunction[(Request, Throwable), Response]] = None
-  private var notFoundHandler: Option[PartialFunction[Request, Response]] = None
+  private var handlers: List[PartialFunction[WebRequest, Response]] = Nil
+  private var errorHandler: Option[PartialFunction[(WebRequest, Throwable), Response]] = None
+  private var notFoundHandler: Option[PartialFunction[WebRequest, Response]] = None
 
-  private val httpServlet = new ServletWrapper {
-    def baseUrl = ""
-    def secureBaseUrl = ""
+  private val httpServlet = new HttpServletWrapper
+  
+  class HttpServletWrapper extends ServletWrapper {
 
-    def handle(r: Request): Response = try {
+    def handle(r: WebRequest): Response = try {
       var result: Option[Response] = None
 
       val hs = handlers.reverse.iterator
@@ -47,7 +58,8 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
           case e: MatchError =>
             /* We need to be able to distinguish between a MatchError thrown because no handler
              * was found, and a MatchError thrown due to user code. We do this be inspecting the
-             * stack trace. */
+             * stack trace. It's an ugly solution, but there's no other convenient way I can think
+             * of. */
             val ignores = List(
               "scala.",
               "rapture.web.",
@@ -60,7 +72,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
             )
             
             if(e.getStackTrace exists { f => 
-              ignores.forall(s => !f.getClassName.startsWith(s))
+              ignores forall { s => !f.getClassName.startsWith(s) }
             }) result = Some(error(r, e))
         }
       }
@@ -113,16 +125,32 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
   }
   
   /** Method to allow registration of handlers for requests matching different conditions */
-  def handle[T](fn: PartialFunction[Request, T])(implicit handler: Handler[T]) =
+  def handle[T](fn: PartialFunction[WebRequest, T])(implicit handler: Handler[T]) =
     handlers ::= { fn andThen handler.response }
 
   def respond[T](t: T)(implicit handler: Handler[T]) = handler.response(t)
 
-  def handleError[T](fn: PartialFunction[(Request, Throwable), T])(implicit handler: Handler[T]) = {
+  implicit def formExtras[F <: Forms.WebForm](f: F) = new {
+    def show[T: Handler](p1: F => T) = new {
+      def thenGoto[S: Handler](s: S): Response =
+        if(f.complete) {
+          f.save()
+          implicitly[Handler[S]].response(s)
+        } else implicitly[Handler[T]].response(p1(f))
+
+      def then[S: Handler](p2: F => S): Response =
+        if(f.complete) {
+          f.save()
+          implicitly[Handler[S]].response(p2(f))
+        } else implicitly[Handler[T]].response(p1(f))
+    }
+  }
+
+  def handleError[T](fn: PartialFunction[(WebRequest, Throwable), T])(implicit handler: Handler[T]) = {
     errorHandler = Some({ fn andThen handler.response })
   }
 
-  def handleNotFound[T](fn: PartialFunction[Request, T])(implicit handler: Handler[T]) = {
+  def handleNotFound[T](fn: PartialFunction[WebRequest, T])(implicit handler: Handler[T]) = {
     notFoundHandler = Some({ fn andThen handler.response })
   }
 
@@ -137,7 +165,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
   trait RequestOptions {
     def httpMethods: List[HttpMethods.Method]
     def pathMatching: PathMatching.Value
-    def validate(r: Request) =
+    def validate(r: WebRequest) =
       httpMethods.contains(r.requestMethod) && (pathMatching match {
         case PathMatching.NoTrailingSlash => r.url.last != '/'
         case PathMatching.RequireTrailingSlash => r.url.last == '/'
@@ -151,48 +179,42 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers {
     def pathMatching = PathMatching.IgnoreTrailingSlash
   }
 
-  trait ExtractorParser[T] { def parse(s: String): Option[T] }
-  implicit val IntExtractorParser = new ExtractorParser[Int] { def parse(s: String): Option[Int] = try Some(s.toInt) catch { case e: Exception => None } }
+  //trait ExtractorParser[T] { def parse(s: String): Option[T] }
+  //implicit val IntExtractorParser = new ExtractorParser[Int] { def parse(s: String): Option[Int] = try Some(s.toInt) catch { case e: Exception => None } }
 
-  object As { def unapply[T](s: String)(implicit parser: ExtractorParser[T]): Option[T] = parser.parse(s) }
+  //object As { def unapply[T](s: String)(implicit parser: ExtractorParser[T]): Option[T] = parser.parse(s) }
 
   object AsInt { def unapply(s: String): Option[Int] = try Some(s.toInt) catch { case e: Exception => None } }
 
   /** Extract the path from the request */
-  object Path { def unapply(r: Request): Option[rapture.io.Path] = Some(r.path) }
+  object Path { def unapply(r: WebRequest): Option[rapture.io.Path] = Some(r.path) }
 
   /** Defines a pattern matching construct to be used to chain together constraints on requests */
-  object & { def unapply(r: Request) = Some((r, r)) }
+  object & { def unapply(r: WebRequest) = Some((r, r)) }
 
   /** Method for creating new parameter extractors for requests */
-  def withParam(p: Symbol) = new { def unapply(r: Request): Option[String] = r.param(p) }
+  def withParam(p: Symbol) = new Param(p)
+
+  class Param(p: Symbol) { def unapply(r: WebRequest): Option[String] = r.param(p) }
+
+  class CookieExtractor(p: Symbol) { def unapply(r: WebRequest): Option[String] = r.cookie(p.name) }
 
   /** Method for producing new cookie extractors for requests */
-  def withCookie(c: String) = new {
-    def unapply(r: Request): Option[String] = {
-      val res = r.cookie(c)
-      //log.debug("With Cookie "+c+": "+res)
-      res
-    }
-  }
+  def withCookie(c: Symbol) = new CookieExtractor(c)
+
+  class HttpHeader(p: String) { def unapply(r: WebRequest): Option[String] = r.headers.get(p).flatMap(_.headOption) }
 
   /** Method for creating new HTTP header extractors for requests */
-  def withHttpHeader(h: String) = new {
-    def unapply(r: Request): Option[String] = {
-      val res = r.headers.get(h).flatMap(_.headOption)
-      //log.debug("With HTTP header "+h+": "+res)
-      res
-    }
-  }
+  def withHttpHeader(h: String) = new HttpHeader(h)
 
   /*8 A simple "Not found" page */
-  def notFound(r: Request): Response = {
+  def notFound(r: WebRequest): Response = {
     //log.info("Not found: "+r.path)
     ErrorResponse(404, Nil, Nil, "Not found", "The requested resource could not be found")
   }
 
   /** A simple error response */
-  def error(r: Request, e: Throwable): Response = {
+  def error(r: WebRequest, e: Throwable): Response = {
     log.error(e.getMessage)
     log.exception(e)
     try {

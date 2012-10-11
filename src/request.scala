@@ -57,14 +57,6 @@ abstract class Request {
    *  parameters. Conventionally has a leading slash only, unless it's empty. */
   def remainderString: String
 
-  /** The canonical deployment base URL of this application, e.g.
-   *  http://www.example.com:8080/basePath. */
-  def baseUrl: String
-
-  /** The canonical secure deployment base URL, e.g.
-   *  https://secure.example.com/basePath. */
-  def secureBaseUrl: String
-
   /** Array of all query and POST parameters in order. */
   def params: Seq[Request.QueryParam]
 
@@ -96,6 +88,10 @@ abstract class Request {
     }
     pm
   }
+
+  def onComplete(block: => Unit) = completionTasks += (() => block)
+
+  val completionTasks: ListBuffer[() => Unit] = new ListBuffer
 
   lazy val parameterMap: Map[String, String] = pmap.toMap
 
