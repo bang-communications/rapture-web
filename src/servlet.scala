@@ -15,8 +15,6 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
   def secureBaseUrl: String
   def handle(req: Request): Response
 
-  @inline def fromNull[T](t: T): Option[T] = if(t == null) None else Some(t)
-
   override def service(req: HttpServletRequest, resp: HttpServletResponse) = {
     val t0 = System.currentTimeMillis
     val vReq = try {
@@ -36,7 +34,7 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
         lazy val url = req.getRequestURL.toString
         def basePathString = req.getContextPath
         def servicePathString = req.getServletPath
-        def remainderString = fromNull(req.getPathInfo).getOrElse("")
+        def remainderString = req.getPathInfo.fromNull.getOrElse("")
         def baseUrl = wrapper.baseUrl
         def secureBaseUrl = wrapper.secureBaseUrl
         
@@ -58,7 +56,7 @@ abstract class ServletWrapper extends HttpServlet { wrapper =>
                   uploadsValue += stripQuotes(m.name.get) -> m.data
                   params += Request.StringQueryParam(stripQuotes(m.name.get), stripQuotes(m.filename.get))
                 } else params += new Request.StringQueryParam(stripQuotes(m.name.get),
-                    new String(m.data, fromNull(req.getCharacterEncoding).getOrElse("ASCII")))
+                    new String(m.data, req.getCharacterEncoding.fromNull.getOrElse("ASCII")))
               }
             }
             params.toList

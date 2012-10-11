@@ -1,5 +1,7 @@
 package rapture.web
 
+import rapture.io._
+
 import org.osgi.framework._ // {ServiceReference, BundleContext}
 import scala.reflect._
 
@@ -14,18 +16,16 @@ object Osgi {
   case class Remove[Service](service: Service)
       extends ServiceEvent[Service](service)
 
-  @inline def fromNull[T](t: T): Option[T] = if(t == null) None else Some(t)
-
   /** Gets the service object from the OSGi context. */
-  // FIXME: Clearly doesn't work!
+  // FIXME: This doesn't work!
   def service[Service](implicit ctx: BundleContext, mf: ClassTag[Service]): Option[Service] = {
     if(ctx == null) throw new Exception("ctx == null")
     if(mf == null) throw new Exception("mf == null")
     if(mf.runtimeClass == null) throw new Exception("mf.runtimeClass == null")
     if(mf.runtimeClass.getName == null) throw new Exception("mf.runtimeClass.getName == null")
     if(ctx.getServiceReference(mf.runtimeClass.getName) == null) throw new Exception("etc == null")
-    fromNull(ctx.getServiceReference(mf.runtimeClass.getName)) flatMap { sr => try {
-      fromNull(ctx.getService(sr)).map(_.asInstanceOf[Service])
+    ctx.getServiceReference(mf.runtimeClass.getName).fromNull flatMap { sr => try {
+      ctx.getService(sr).fromNull.map(_.asInstanceOf[Service])
     } finally {
       ctx.ungetService(sr)
       None
