@@ -6,7 +6,6 @@ import scala.collection.mutable.{Map => _, _}
 import rapture.io._
 
 trait Servlets { this: HttpServer =>
-  @inline def fromNull[T](t: T): Option[T] = if(t == null) None else Some(t)
   class BasicRequest(req: HttpServletRequest, resp: HttpServletResponse) extends Request {
     def contentType = {
       val ct = req.getContentType
@@ -23,7 +22,7 @@ trait Servlets { this: HttpServer =>
     lazy val url = req.getRequestURL.toString
     def basePathString = req.getContextPath
     def servicePathString = req.getServletPath
-    def remainderString = fromNull(req.getPathInfo).getOrElse("")
+    def remainderString = req.getPathInfo.fromNull.getOrElse("")
     
     var uploadsValue: Map[String, Array[Byte]] = Map[String, Array[Byte]]()
 
@@ -43,7 +42,7 @@ trait Servlets { this: HttpServer =>
               uploadsValue += stripQuotes(m.name.get) -> m.data
               params += Request.StringQueryParam(stripQuotes(m.name.get), stripQuotes(m.filename.get))
             } else params += new Request.StringQueryParam(stripQuotes(m.name.get),
-                new String(m.data, fromNull(req.getCharacterEncoding).getOrElse("ASCII")))
+                new String(m.data, req.getCharacterEncoding.fromNull.getOrElse("ASCII")))
           }
         }
         params.toList
