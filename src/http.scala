@@ -193,14 +193,24 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers with Ser
   object & { def unapply(r: WebRequest) = Some((r, r)) }
 
   /** Method for creating new parameter extractors for requests */
-  def withParam(p: Symbol) = new Param(p)
+  def getParam(p: Symbol) = new GetParam(p)
+  def hasParam(p: Symbol) = new HasParam(p)
+  
+  class HasParam(p: Symbol) {
+    def unapply(r: WebRequest): Option[Boolean] = Some(r.exists(p))
+  }
 
-  class Param(p: Symbol) { def unapply(r: WebRequest): Option[String] = r.param(p) }
+  class GetParam(p: Symbol) { def unapply(r: WebRequest): Option[String] = r.param(p) }
 
-  class CookieExtractor(p: Symbol) { def unapply(r: WebRequest): Option[String] = r.cookie(p.name) }
+  class GetCookie(p: Symbol) { def unapply(r: WebRequest): Option[String] = r.cookie(p.name) }
+  
+  class HasCookie(p: Symbol) {
+    def unapply(r: WebRequest): Option[Boolean] = Some(r.cookie(p.name).isDefined)
+  }
 
   /** Method for producing new cookie extractors for requests */
-  def withCookie(c: Symbol) = new CookieExtractor(c)
+  def getCookie(c: Symbol) = new GetCookie(c)
+  def hasCookie(c: Symbol) = new HasCookie(c)
 
   class HttpHeader(p: String) { def unapply(r: WebRequest): Option[String] = r.headers.get(p).flatMap(_.headOption) }
 
@@ -314,16 +324,8 @@ trait Handlers { this: HttpServer =>
     def response(r: Response) = r
   }
 
-  implicit def jsonArrayHandler(implicit enc: Encodings.Encoding) = new Handler[JSONArray] {
-    def response(t: JSONArray) = StreamResponse(200, Response.NoCache, Nil,
-        MimeTypes.`application/json`, { os =>
-      StringInput(t.toString()) > os
-      os.close()
-    })
-  }
-  
-  implicit def jsonObjectHandler(implicit enc: Encodings.Encoding) = new Handler[JSONObject] {
-    def response(t: JSONObject) = StreamResponse(200, Response.NoCache, Nil,
+  implicit def jsonHandler(implicit enc: Encodings.Encoding) = new Handler[Json] {
+    def response(t: Json) = StreamResponse(200, Response.NoCache, Nil,
         MimeTypes.`application/json`, { os =>
       StringInput(t.toString()) > os
       os.close()

@@ -12,6 +12,9 @@ trait Servlets { this: HttpServer =>
       val ct2 = if(ct == null) "application/x-www-form-urlencoded" else ct.split(";").head
       MimeTypes.fromString(ct2).getOrElse(MimeTypes.MimeType(ct2))
     }
+
+    def uploadSizeLimit = 10*1024*1024
+
     def contentLength = req.getContentLength
     def queryString = req.getQueryString
     def requestMethod = HttpMethods.method(req.getMethod)
@@ -35,7 +38,7 @@ trait Servlets { this: HttpServer =>
         val params = new ListBuffer[Request.QueryParam]
         val ct = headers("Content-Type").head.split("; *")
         val boundary = ct.find(_.startsWith("boundary=")).get.substring(9)
-        val mpr = new MultipartReader(boundary, req.getInputStream)
+        val mpr = new MultipartReader(boundary, req.getInputStream, uploadSizeLimit)
         while(mpr.ready()) {
           mpr.read() foreach { m =>
             if(m.filename.isDefined) {
