@@ -258,6 +258,20 @@ trait Handlers { this: HttpServer =>
     })
   }
 
+  implicit val stringInputHandler = new Handler[Input[String]] {
+    implicit val enc = Encodings.`UTF-8`
+    def response(in: Input[String]) = StreamResponse(200, Response.NoCache, Nil,
+        MimeTypes.`text/plain`, { os =>
+      implicit val sr = rapture.io.StringCharReader
+      var ln = in.read()
+      while(ln != None) {
+        (ln+"\n") > os
+        ln = in.read()
+      }
+      os.close()
+    })
+  }
+
   implicit def xmlHandler(implicit enc: Encodings.Encoding) = new Handler[Seq[Node]] {
     def response(t: Seq[Node]) = StreamResponse(200, Response.NoCache, Nil,
         MimeTypes.`application/xml`, { os =>
