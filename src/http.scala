@@ -258,19 +258,20 @@ trait Handlers { this: HttpServer =>
     })
   }
 
-  implicit val stringInputHandler = new Handler[Input[String]] {
-    implicit val enc = Encodings.`UTF-8`
-    def response(in: Input[String]) = StreamResponse(200, Response.NoCache, Nil,
-        MimeTypes.`text/plain`, { os =>
-      implicit val sr = rapture.io.StringCharReader
-      var ln = in.read()
-      while(ln != None) {
-        (ln+"\n") > os
-        ln = in.read()
-      }
-      os.close()
-    })
-  }
+  implicit val StringInputHandler =
+    new Handler[Input[String]] {
+      implicit val enc = Encodings.`UTF-8`
+      def response(in: Input[String]) = StreamResponse(200, Response.NoCache, Nil,
+          MimeTypes.`text/plain`, { os =>
+        implicit val sr = rapture.io.StringCharReader
+        var ln = in.read()
+        while(ln != None) {
+          (ln+"\n") > os
+          ln = in.read()
+        }
+        os.close()
+      })
+    }
 
   implicit def xmlHandler(implicit enc: Encodings.Encoding) = new Handler[Seq[Node]] {
     def response(t: Seq[Node]) = StreamResponse(200, Response.NoCache, Nil,
@@ -280,6 +281,15 @@ trait Handlers { this: HttpServer =>
       os.close()
     })
   }
+  
+  implicit def csvHandler(implicit enc: Encodings.Encoding) = new Handler[Csv] {
+    def response(csv: Csv) = StreamResponse(200, Response.NoCache, Nil,
+        MimeTypes.`text/csv`, { os =>
+      StringInput(csv.toString) > os
+      os.close()
+    })
+  }
+  
   implicit def stringHandler(implicit enc: Encodings.Encoding) = new Handler[String] {
     def response(t: String) = StreamResponse(200, Response.NoCache, Nil,
         MimeTypes.`text/plain`, { os =>
