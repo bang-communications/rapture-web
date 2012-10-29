@@ -114,20 +114,6 @@ abstract class Request {
   /** Gets a named request param which may not exist. */
   def param(k: Symbol): Option[String] = pmap.get(k.name)
 
-  /*private var xmlSet = false
-  private var _xml: Option[Node] = None
-  /** Possible POSTed XML. */
-  def xml: Option[Node] = {
-    if(!xmlSet) {
-      params.foreach {
-        case Request.XmlQueryParam(x) => _xml = Some(x)
-        case _ => ()
-      }
-      xmlSet = true
-    }
-    _xml
-  }*/
-
   /** Gets the value of a cookie from the request */
   def cookie(c: String) = cookies.get(c)
 
@@ -145,10 +131,9 @@ abstract class Request {
     cs
   }
 
-  val responseCookies: ListBuffer[(String, String, String, String, Option[Long])] =
-    new ListBuffer[(String, String, String, String, Option[Long])]
+  val responseCookies: ListBuffer[(String, String, String, String, Option[Long], Boolean)] =
+    new ListBuffer[(String, String, String, String, Option[Long], Boolean)]
 
-  def setCookie(name: Symbol, value: String, domain: String = serverName, path: SimplePath = ^, expiry: Option[DateTime]) = 
-    responseCookies += ((name.name, value, domain, path.toString, expiry.map(_.toLong)))
-
+  def setCookie(name: Symbol, value: String, domain: String = serverName, path: SimplePath = ^, expiry: Option[DateTime], secure: Boolean = false) = 
+    responseCookies += ((name.name, value, domain, path.toString, expiry.map(_.toLong), secure))
 }

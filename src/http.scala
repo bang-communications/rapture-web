@@ -21,7 +21,7 @@ trait BasicRequests { this: HttpServer =>
 }
 
 /** This trait provides a nice interface to the HTTP server */
-trait HttpServer extends DelayedInit with BundleActivator with Handlers with Servlets {
+trait HttpServer extends DelayedInit with BundleActivator with Servlets {
 
   type WebRequest <: Request
 
@@ -204,10 +204,13 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers with Ser
 
   class GetParam(p: Symbol) { def unapply(r: WebRequest): Option[String] = r.param(p) }
 
-  class GetCookie(p: Symbol) { def unapply(r: WebRequest): Option[String] = r.cookie(p.name) }
+  class GetCookie(p: Symbol) {
+    def unapply(r: WebRequest): Option[String] = r.cookie(p.name)
+  }
   
   class HasCookie(p: Symbol) {
-    def unapply(r: WebRequest): Option[Boolean] = Some(r.cookie(p.name).isDefined)
+    def unapply(r: WebRequest): Option[Boolean] =
+      Some(r.cookie(p.name).isDefined)
   }
 
   /** Method for producing new cookie extractors for requests */
@@ -219,10 +222,10 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers with Ser
   /** Method for creating new HTTP header extractors for requests */
   def withHttpHeader(h: String) = new HttpHeader(h)
 
-  /*8 A simple "Not found" page */
+  /** A simple "Not found" page */
   def notFound(r: WebRequest): Response = {
     //log.info("Not found: "+r.path)
-    ErrorResponse(404, Nil, Nil, "Not found", "The requested resource could not be found")
+    ErrorResponse(404, Nil, "Not found", "The requested resource could not be found")
   }
 
   /** A simple error response */
@@ -231,39 +234,23 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers with Ser
     log.exception(e)
     try {
       errorHandler.map(_(r, e)) getOrElse {
-        ErrorResponse(500, Nil, Nil, "An unexpected error has occurred", "Unknown error")
+        ErrorResponse(500, Nil, "An unexpected error has occurred", "Unknown error")
       }
     } catch { case e: Exception =>
       log.error("Further error occurred whilst handling error page: "+e.getMessage)
       log.exception(e)
-      ErrorResponse(500, Nil, Nil, "An unexpected error has occurred", "Unknown error")
+      ErrorResponse(500, Nil, "An unexpected error has occurred", "Unknown error")
     }
   }
 
   /** A standard implementaiton of a response which confirms cross-domain access corntrol */
   def accessControlAllowOrigin(domain: String)(implicit enc: Encodings.Encoding): Response =
-    StreamResponse(200, ("Access-Control-Allow-Origin" -> domain) :: ("Access-Control-Allow-Credentials" -> "true") :: Response.NoCache, Nil, MimeTypes.`application/xml`, v => ())(enc)
-
-
-}
-
-trait Handlers { this: HttpServer =>
+    StreamResponse(200, ("Access-Control-Allow-Origin" -> domain) :: ("Access-Control-Allow-Credentials" -> "true") :: Response.NoCache, MimeTypes.`application/xml`, v => ())(enc)
 
   trait Handler[-T] { def response(t: T): Response }
 
-  case class Doctype(declaration: String)
-
-  object Html4Strict extends Doctype("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">")
-  object Html4Transitional extends Doctype("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">")
-  object Html4Frameset extends Doctype("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\" \"http://www.w3.org/TR/html4/frameset.dtd\">")
-  object Xhtml1Strict extends Doctype("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">")
-  object Xhtml1Transitional extends Doctype("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">")
-  object Xhtml1Frameset extends Doctype("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\">")
-  object Html32 extends Doctype("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">")
-  object Html2 extends Doctype("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML//EN\">")
-
   implicit def charInputHandler(implicit enc: Encodings.Encoding) = new Handler[Input[Char]] {
-    def response(in: Input[Char]) = StreamResponse(200, Response.NoCache, Nil,
+    def response(in: Input[Char]) = StreamResponse(200, Response.NoCache,
         MimeTypes.`text/plain`, { os =>
       in > os
       os.close()
@@ -273,7 +260,7 @@ trait Handlers { this: HttpServer =>
   implicit val StringInputHandler =
     new Handler[Input[String]] {
       implicit val enc = Encodings.`UTF-8`
-      def response(in: Input[String]) = StreamResponse(200, Response.NoCache, Nil,
+      def response(in: Input[String]) = StreamResponse(200, Response.NoCache,
           MimeTypes.`text/plain`, { os =>
         var ln = in.read()
         while(ln != None) {
@@ -285,59 +272,54 @@ trait Handlers { this: HttpServer =>
     }
 
   implicit def xmlHandler(implicit enc: Encodings.Encoding) = new Handler[Seq[Node]] {
-    def response(t: Seq[Node]) = StreamResponse(200, Response.NoCache, Nil,
+    def response(t: Seq[Node]) = StreamResponse(200, Response.NoCache,
         MimeTypes.`application/xml`, { os =>
-      StringInput("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n") > os
-      StringInput(t.toString) > os
+      ("<?xml version=\"1.0\" encoding=\""+enc.name+"\"?>\n") > os
+      t.toString > os
       os.close()
     })
   }
   
   implicit def csvHandler(implicit enc: Encodings.Encoding) = new Handler[Csv] {
-    def response(csv: Csv) = StreamResponse(200, Response.NoCache, Nil,
+    def response(csv: Csv) = StreamResponse(200, Response.NoCache,
         MimeTypes.`text/csv`, { os =>
-      StringInput(csv.toString) > os
+      csv.toString > os
       os.close()
     })
   }
   
   implicit def stringHandler(implicit enc: Encodings.Encoding) = new Handler[String] {
-    def response(t: String) = StreamResponse(200, Response.NoCache, Nil,
+    def response(t: String) = StreamResponse(200, Response.NoCache,
         MimeTypes.`text/plain`, { os =>
-      StringInput(t) > os
+      t > os
       os.close()
     })
   }
   
   implicit val pathRedirectHandler = new Handler[Path] {
-    def response(path: Path) = RedirectResponse(Nil, Nil, path.toString)
+    def response(path: Path) = RedirectResponse(Nil, path.toString)
   }
 
   implicit def fileHandler = new Handler[FileUrl] {
-    def response(file: FileUrl) = FileResponse(200, Response.NoCache, Nil,
+    def response(file: FileUrl) = FileResponse(200, Response.NoCache,
         file.extension.toList.flatMap(MimeTypes.extension).headOption.getOrElse(
 	      MimeTypes.`text/plain`), file)
   }
 
-  import util.parsing.json._
-
-  implicit val nullHandler = new Handler[Response] {
-    def response(r: Response) = r
-  }
+  implicit val nullHandler = new Handler[Response] { def response(r: Response) = r }
 
   implicit def jsonHandler(implicit enc: Encodings.Encoding) = new Handler[Json] {
-    def response(t: Json) = StreamResponse(200, Response.NoCache, Nil,
+    def response(t: Json) = StreamResponse(200, Response.NoCache,
         MimeTypes.`application/json`, { os =>
-      StringInput(t.toString()) > os
+      t.toString > os
       os.close()
     })
   }
 
   implicit def pageHandler(implicit enc: Encodings.Encoding) = new Handler[Layout.Page] {
-    def response(page: Layout.Page) = StreamResponse(page.httpStatus, Response.NoCache, Nil,
+    def response(page: Layout.Page) = StreamResponse(page.httpStatus, Response.NoCache,
         MimeTypes.`text/html`, { os =>
       page.stream > os
     })
   }
-
 }

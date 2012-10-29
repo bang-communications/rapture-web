@@ -14,7 +14,6 @@ trait Servlets { this: HttpServer =>
       MimeTypes.fromString(ct2).getOrElse(MimeTypes.MimeType(ct2))
     }
 
-    def uploadSizeLimit = 10*1024*1024
 
     def contentLength = req.getContentLength
     def queryString = req.getQueryString
@@ -28,7 +27,8 @@ trait Servlets { this: HttpServer =>
     def servicePathString = req.getServletPath
     def remainderString = req.getPathInfo.fromNull.getOrElse("")
     
-    var uploadsValue: Map[String, Array[Byte]] = Map[String, Array[Byte]]()
+    def uploadSizeLimit = 10*1024*1024
+    private var uploadsValue: Map[String, Array[Byte]] = Map[String, Array[Byte]]()
 
     def fileUploads: Map[String, Array[Byte]] = uploadsValue
 
@@ -109,28 +109,27 @@ trait Servlets { this: HttpServer =>
 
       resp.setStatus(vResp.code)
       for((n, v) <- vResp.headers) resp.addHeader(n, v)
-      for(rc <- vResp.cookies) {
-        val c = new Cookie(rc.name, rc.value)
-        c.setDomain(rc.domain)
-        c.setMaxAge(rc.expires match {
-          case Some(t) => (t / 1000).asInstanceOf[Int]
+      for(rc <- vReq.responseCookies) {
+        val c = new Cookie(rc._1, rc._2)
+        c.setDomain(rc._3)
+        c.setMaxAge(rc._5 match {
+          case Some(t) => (t/1000).toInt
           case None => -1
         })
-        c.setPath(rc.path)
-        c.setSecure(rc.secure)
+        c.setPath(rc._4)
+        c.setSecure(rc._6)
         resp.addCookie(c)
       }
 
       val r = try {
         vResp match {
-          case BufferResponse(_, _, _, ct, buffers) =>
+          case BufferResponse(_, _, ct, buffers) =>
             resp.setContentType(ct.name)
             val out = resp.getOutputStream
             var spare: ByteBuffer = null
             for(b <- buffers) {
-              if(b.hasArray) {
-                out.write(b.array, b.arrayOffset, b.limit)
-              } else {
+              if(b.hasArray) out.write(b.array, b.arrayOffset, b.limit)
+              else {
                 if(spare == null) spare = ByteBuffer.allocate(65536)
                 while(b.hasRemaining) {
                   spare.clear()
@@ -141,23 +140,23 @@ trait Servlets { this: HttpServer =>
             }
             out.flush()
           
-          case sr@StreamResponse(_, _, _, ct, send) =>
+          case sr@StreamResponse(_, _, ct, send) =>
             val enc = Encodings.`UTF-8`
             resp.setContentType(ct.name+"; charset="+enc.name)
             val w = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(), enc.name))
             ensuring(new CharOutput(w))(send)(_.close())
           
-          case ErrorResponse(code, _, _, message, _) =>
+          case ErrorResponse(code, _, message, _) =>
             resp.sendError(code, message)
           
-          case FileResponse(_, _, _, ct, file) =>
+          case FileResponse(_, _, ct, file) =>
             resp.setContentType(ct.name)
             resp.setContentLength(file.length.toInt)
             val out = new ByteOutput(resp.getOutputStream)
             file > out
             out.flush()
           
-          case RedirectResponse(_, _, location) =>
+          case RedirectResponse(_, location) =>
             resp.sendRedirect(location)
         }
       } catch { case e: Exception =>
