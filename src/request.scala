@@ -5,6 +5,7 @@ import language._
 import scala.collection.mutable.{HashMap, ListBuffer}
 import java.io._
 import rapture.io._
+import Base._
 import Time._
 
 object Request {

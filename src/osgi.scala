@@ -1,6 +1,7 @@
 package rapture.web
 
 import rapture.io._
+import Base._
 
 import org.osgi.framework._ // {ServiceReference, BundleContext}
 import scala.reflect._

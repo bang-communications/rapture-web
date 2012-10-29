@@ -4,6 +4,7 @@ import java.nio.ByteBuffer
 import java.io._
 import scala.collection.mutable.{Map => _, _}
 import rapture.io._
+import Base._
 
 trait Servlets { this: HttpServer =>
   class BasicRequest(req: HttpServletRequest, resp: HttpServletResponse) extends Request {
@@ -63,7 +64,6 @@ trait Servlets { this: HttpServer =>
 
     private val input = {
       val in = req.getInputStream
-      implicit val impl = rapture.io.StringCharReader
       implicit val enc = Encodings.`UTF-8`
       inputStreamCharBuilder.input(in)
     }
@@ -71,9 +71,6 @@ trait Servlets { this: HttpServer =>
     lazy val body =
       if(streamRead) throw new Exception("Stream has already been read")
       else {
-        implicit val impl = rapture.io.StringCharReader
-        implicit val ca = rapture.io.CharAccumulator
-        implicit val enc = Encodings.`UTF-8`
         streamRead = true
         input.slurp()
       }
@@ -157,7 +154,6 @@ trait Servlets { this: HttpServer =>
             resp.setContentType(ct.name)
             resp.setContentLength(file.length.toInt)
             val out = new ByteOutput(resp.getOutputStream)
-            implicit val ca = rapture.io.FileStreamByteReader
             file > out
             out.flush()
           

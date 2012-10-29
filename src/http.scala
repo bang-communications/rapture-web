@@ -9,6 +9,8 @@ import scala.collection.mutable.ListMap
 import javax.servlet.http._
 
 import rapture.io._
+import Base._
+
 import rapture.html._
 
 case class InitializationException(subject: String, message: String) extends RuntimeException
@@ -187,7 +189,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Handlers with Ser
   object AsInt { def unapply(s: String): Option[Int] = try Some(s.toInt) catch { case e: Exception => None } }
 
   /** Extract the path from the request */
-  object Path { def unapply(r: WebRequest): Option[rapture.io.Path] = Some(r.path) }
+  object Path { def unapply(r: WebRequest): Option[Base.Path] = Some(r.path) }
 
   /** Defines a pattern matching construct to be used to chain together constraints on requests */
   object & { def unapply(r: WebRequest) = Some((r, r)) }
@@ -273,7 +275,6 @@ trait Handlers { this: HttpServer =>
       implicit val enc = Encodings.`UTF-8`
       def response(in: Input[String]) = StreamResponse(200, Response.NoCache, Nil,
           MimeTypes.`text/plain`, { os =>
-        implicit val sr = rapture.io.StringCharReader
         var ln = in.read()
         while(ln != None) {
           (ln+"\n") > os
