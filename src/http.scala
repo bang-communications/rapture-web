@@ -52,33 +52,13 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   class HttpServletWrapper extends ServletWrapper {
 
     def handle(r: WebRequest): Response = try {
-      var result: Option[Response] = None
-
-      val hs = handlers.reverse.iterator
-      while(hs.hasNext && result.isEmpty) {
-        try { result = Some(hs.next()(r)) } catch {
-          case e: MatchError =>
-            /* We need to be able to distinguish between a MatchError thrown because no handler
-             * was found, and a MatchError thrown due to user code. We do this be inspecting the
-             * stack trace. It's an ugly solution, but there's no other convenient way I can think
-             * of. */
-            val ignores = List(
-              "scala.",
-              "rapture.web.",
-              "javax.servlet.http.",
-              "org.apache.felix.",
-              "javax.servlet.",
-              "org.mortbay.jetty.",
-              "org.mortbay.io.",
-              "org.mortbay.thread."
-            )
-            
-            if(e.getStackTrace exists { f => 
-              ignores forall { s => !f.getClassName.startsWith(s) }
-            }) result = Some(error(r, e))
+      def doHandle(hs: List[PartialFunction[WebRequest, Response]])(r: WebRequest): Response =
+        hs match {
+          case Nil => notFound(r)
+          case h :: t => h.applyOrElse(r, doHandle(t))
         }
-      }
-      result.orElse(notFoundHandler.map(_(r))).getOrElse(notFound(r))
+
+      doHandle(handlers.reverse)(r)
     } catch {
       case e: Throwable =>
         error(r, e)

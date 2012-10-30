@@ -115,7 +115,7 @@ abstract class Request {
   def param(k: Symbol): Option[String] = pmap.get(k.name)
 
   /** Gets the value of a cookie from the request */
-  def cookie(c: Symbol) = cookies.get(c.name)
+  def cookie(c: Symbol): Option[String] = cookies.get(c.name)
 
   private lazy val cookies: scala.collection.immutable.Map[String, String] = {
     var cs = scala.collection.immutable.Map[String, String]()
