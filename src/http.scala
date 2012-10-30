@@ -205,12 +205,12 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   class GetParam(p: Symbol) { def unapply(r: WebRequest): Option[String] = r.param(p) }
 
   class GetCookie(p: Symbol) {
-    def unapply(r: WebRequest): Option[String] = r.cookie(p.name)
+    def unapply(r: WebRequest): Option[String] = r.cookie(p)
   }
   
   class HasCookie(p: Symbol) {
     def unapply(r: WebRequest): Option[Boolean] =
-      Some(r.cookie(p.name).isDefined)
+      Some(r.cookie(p).isDefined)
   }
 
   /** Method for producing new cookie extractors for requests */

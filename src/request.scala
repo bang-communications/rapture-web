@@ -115,7 +115,7 @@ abstract class Request {
   def param(k: Symbol): Option[String] = pmap.get(k.name)
 
   /** Gets the value of a cookie from the request */
-  def cookie(c: String) = cookies.get(c)
+  def cookie(c: Symbol) = cookies.get(c.name)
 
   private lazy val cookies: scala.collection.immutable.Map[String, String] = {
     var cs = scala.collection.immutable.Map[String, String]()
@@ -134,6 +134,6 @@ abstract class Request {
   val responseCookies: ListBuffer[(String, String, String, String, Option[Long], Boolean)] =
     new ListBuffer[(String, String, String, String, Option[Long], Boolean)]
 
-  def setCookie(name: Symbol, value: String, domain: String = serverName, path: SimplePath = ^, expiry: Option[DateTime], secure: Boolean = false) = 
+  def setCookie(name: Symbol, value: String, domain: String = serverName, path: SimplePath = ^, expiry: Option[DateTime] = None, secure: Boolean = false) = 
     responseCookies += ((name.name, value, domain, path.toString, expiry.map(_.toLong), secure))
 }
