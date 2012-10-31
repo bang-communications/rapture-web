@@ -58,7 +58,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
           case h :: t => h.applyOrElse(r, doHandle(t))
         }
 
-      doHandle(handlers.reverse)(r)
+      doHandle(handlers)(r)
     } catch {
       case e: Throwable =>
         error(r, e)
