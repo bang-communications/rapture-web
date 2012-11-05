@@ -4,7 +4,6 @@ import java.nio.ByteBuffer
 import java.io._
 import scala.collection.mutable.{Map => _, _}
 import rapture.io._
-import Base._
 
 trait Servlets { this: HttpServer =>
   class BasicRequest(req: HttpServletRequest, resp: HttpServletResponse) extends Request {

@@ -9,7 +9,6 @@ import scala.collection.mutable.ListMap
 import javax.servlet.http._
 
 import rapture.io._
-import Base._
 
 import rapture.html._
 
@@ -169,7 +168,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   object AsInt { def unapply(s: String): Option[Int] = try Some(s.toInt) catch { case e: Exception => None } }
 
   /** Extract the path from the request */
-  object Path { def unapply(r: WebRequest): Option[Base.Path] = Some(r.path) }
+  object Path { def unapply(r: WebRequest): Option[rapture.io.Path] = Some(r.path) }
 
   /** Defines a pattern matching construct to be used to chain together constraints on requests */
   object & { def unapply(r: WebRequest) = Some((r, r)) }

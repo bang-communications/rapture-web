@@ -3,7 +3,6 @@ import java.nio._
 import java.io._
 
 import rapture.io._
-import Base._
 
 /** A collection of standard response-related objects. */
 object Response {
