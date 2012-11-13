@@ -50,9 +50,10 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   
   class HttpServletWrapper extends ServletWrapper {
 
+    /** FIXME: This is not tail-recursive. */
     def handle(r: WebRequest): Response = try {
-      yCombinator[(List[PartialFunction[WebRequest, Response]], WebRequest), Response] { f => i =>
-        i._1 match {
+      yCombinator[(List[PartialFunction[WebRequest, Response]], WebRequest), Response] { f =>
+        _._1 match {
           case Nil => notFound(r)
           case h :: t => h.applyOrElse(r, (g: WebRequest) => f(t -> g))
         }
@@ -60,10 +61,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
     } catch { case e: Throwable => error(r, e) }
   }
  
-  private def unregisterServlet() = {
-    trackedService.foreach(_.close())
-    //log.info("Stopped tracking services")
-  }
+  private def unregisterServlet() = trackedService.foreach(_.close())
 
   /** Registers the servlet with the HTTP service when it becomes available, and unregisters it
     * when it ceases to be available */
