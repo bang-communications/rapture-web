@@ -168,7 +168,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   object AsInt { def unapply(s: String): Option[Int] = try Some(s.toInt) catch { case e: Exception => None } }
 
   /** Extract the path from the request */
-  object Path { def unapply(r: WebRequest): Option[rapture.io.Path] = Some(r.path) }
+  object Path { def unapply(r: WebRequest): Option[SimplePath] = Some(r.path) }
 
   /** Defines a pattern matching construct to be used to chain together constraints on requests */
   object & { def unapply(r: WebRequest) = Some((r, r)) }
@@ -275,8 +275,8 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
     })
   }
   
-  implicit val pathRedirectHandler = new Handler[Path] {
-    def response(path: Path) = RedirectResponse(Nil, path.toString)
+  implicit val linkRedirectHandler = new Handler[Link] {
+    def response(link: Link) = RedirectResponse(Nil, link.toString)
   }
 
   implicit def fileHandler = new Handler[FileUrl] {

@@ -72,7 +72,7 @@ abstract class Request {
   val time: Long = System.currentTimeMillis
 
   /** The path of the script */
-  lazy val path: SimplePath = new SimplePath((servicePathString+remainderString).replaceAll("^\\/", "").split("\\/").filter(_ != ""), "") {
+  lazy val path: SimplePath = new SimplePath((servicePathString+remainderString).replaceAll("^\\/", "").split("\\/").filter(_ != ""), Map()) {
     val params = Nil
   }
 
