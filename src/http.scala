@@ -51,17 +51,13 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   class HttpServletWrapper extends ServletWrapper {
 
     def handle(r: WebRequest): Response = try {
-      def doHandle(hs: List[PartialFunction[WebRequest, Response]])(r: WebRequest): Response =
-        hs match {
+      yCombinator[(List[PartialFunction[WebRequest, Response]], WebRequest), Response] { f => i =>
+        i._1 match {
           case Nil => notFound(r)
-          case h :: t => h.applyOrElse(r, doHandle(t))
+          case h :: t => h.applyOrElse(r, (g: WebRequest) => f(t -> g))
         }
-
-      doHandle(handlers)(r)
-    } catch {
-      case e: Throwable =>
-        error(r, e)
-    }
+      } (handlers -> r)
+    } catch { case e: Throwable => error(r, e) }
   }
  
   private def unregisterServlet() = {
