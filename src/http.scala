@@ -54,7 +54,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
     def handle(r: WebRequest): Response = try {
       yCombinator[(List[PartialFunction[WebRequest, Response]], WebRequest), Response] { f =>
         _._1 match {
-          case Nil => notFound(r)
+          case Nil => notFoundHandler.map(_(r)).getOrElse(notFound(r))
           case h :: t => h.applyOrElse(r, (g: WebRequest) => f(t -> g))
         }
       } (handlers -> r)
