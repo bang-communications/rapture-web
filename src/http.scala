@@ -237,7 +237,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
           MimeTypes.`text/plain`, { os =>
         var ln = in.read()
         while(ln != None) {
-          (ln+"\n") > os
+          (ln+"\n").input > os
           ln = in.read()
         }
         os.close()
@@ -247,8 +247,8 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   implicit def xmlHandler(implicit enc: Encodings.Encoding) = new Handler[Seq[Node]] {
     def response(t: Seq[Node]) = StreamResponse(200, Response.NoCache,
         MimeTypes.`application/xml`, { os =>
-      ("<?xml version=\"1.0\" encoding=\""+enc.name+"\"?>\n") > os
-      t.toString > os
+      ("<?xml version=\"1.0\" encoding=\""+enc.name+"\"?>\n").input > os
+      t.toString.input > os
       os.close()
     })
   }
@@ -256,7 +256,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   implicit def csvHandler(implicit enc: Encodings.Encoding) = new Handler[Csv] {
     def response(csv: Csv) = StreamResponse(200, Response.NoCache,
         MimeTypes.`text/csv`, { os =>
-      csv.toString > os
+      csv.toString.input > os
       os.close()
     })
   }
@@ -264,7 +264,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   implicit def stringHandler(implicit enc: Encodings.Encoding) = new Handler[String] {
     def response(t: String) = StreamResponse(200, Response.NoCache,
         MimeTypes.`text/plain`, { os =>
-      t > os
+      t.input > os
       os.close()
     })
   }
@@ -284,7 +284,7 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
   implicit def jsonHandler(implicit enc: Encodings.Encoding) = new Handler[Json] {
     def response(t: Json) = StreamResponse(200, Response.NoCache,
         MimeTypes.`application/json`, { os =>
-      t.toString > os
+      t.toString.input > os
       os.close()
     })
   }
