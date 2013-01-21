@@ -7,6 +7,7 @@ import java.io._
 import rapture.io._
 import Time._
 
+
 object Request {
   sealed trait QueryParam { def name: String }
   case class StringQueryParam(name: String, value: String) extends QueryParam

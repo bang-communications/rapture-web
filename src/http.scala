@@ -19,8 +19,16 @@ trait BasicRequests { this: HttpServer =>
   def makeRequest(req: HttpServletRequest, resp: HttpServletResponse) = new BasicRequest(req, resp)
 }
 
+
+trait HttpServerLpImplicits { this: HttpServer =>
+  implicit val linkRedirectHandler = new Handler[Link] {
+    def response(link: Link) = RedirectResponse(Nil, link.toString)
+  }
+}
+
+
 /** This trait provides a nice interface to the HTTP server */
-trait HttpServer extends DelayedInit with BundleActivator with Servlets {
+trait HttpServer extends DelayedInit with BundleActivator with Servlets with HttpServerLpImplicits {
 
   type WebRequest <: Request
 
@@ -269,10 +277,6 @@ trait HttpServer extends DelayedInit with BundleActivator with Servlets {
     })
   }
   
-  implicit val linkRedirectHandler = new Handler[Link] {
-    def response(link: Link) = RedirectResponse(Nil, link.toString)
-  }
-
   implicit def fileHandler = new Handler[FileUrl] {
     def response(file: FileUrl) = FileResponse(200, Response.NoCache,
         file.extension.toList.flatMap(MimeTypes.extension).headOption.getOrElse(
