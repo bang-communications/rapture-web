@@ -59,7 +59,7 @@ abstract class Request {
   def remainderString: String
 
   /** Array of all query and POST parameters in order. */
-  def params: Seq[Request.QueryParam]
+  def parameters: Map[String, String]
 
   def fileUploads: Map[String, Array[Byte]]
 
@@ -81,38 +81,27 @@ abstract class Request {
 
   lazy val remainder: List[String] = remainderString.split("\\/").toList
 
-  private lazy val pmap: HashMap[String, String] = {
-    val pm = new HashMap[String, String]
-    params.foreach {
-      case Request.StringQueryParam(k, v) => pm(k) = v
-      case _ => ()
-    }
-    pm
-  }
-
   def onComplete(block: => Unit) = completionTasks += (() => block)
 
   val completionTasks: ListBuffer[() => Unit] = new ListBuffer
 
-  lazy val parameterMap: Map[String, String] = pmap.toMap
-
   /** Checks for the existence of a named request param. */
-  def exists(k: Symbol): Boolean = pmap.contains(k.name)
+  def exists(k: Symbol): Boolean = parameters.contains(k.name)
 
   /** Gets a named request param (which must exist). */
-  def apply(k: String): String = pmap.get(k) match {
+  def apply(k: String): String = parameters.get(k) match {
     case Some(v) => v
     case None => throw new Exception("Missing parameter: "+k)
   }
 
   /** Gets a named request param or returns the default. */
-  def param(k: Symbol, default: String): String = pmap.get(k.name) match {
+  def param(k: Symbol, default: String): String = parameters.get(k.name) match {
     case Some(v) => v
     case None => default
   }
 
   /** Gets a named request param which may not exist. */
-  def param(k: Symbol): Option[String] = pmap.get(k.name)
+  def param(k: Symbol): Option[String] = parameters.get(k.name)
 
   /** Gets the value of a cookie from the request */
   def cookie(c: Symbol): Option[String] = cookies.get(c.name)

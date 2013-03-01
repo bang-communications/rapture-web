@@ -36,6 +36,3 @@ case class FileResponse(code: Int, headers: Seq[(String, String)],
 case class RedirectResponse(headers: Seq[(String, String)], location: String) extends Response {
   final def code = 302
 }
-
-/*case class ResponseCookie(domain: String, expires: Option[Long], name: String,
-    path: String, secure: Boolean, value: String)*/

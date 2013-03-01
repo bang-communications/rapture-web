@@ -33,9 +33,9 @@ trait Servlets { this: HttpServer =>
 
     private def stripQuotes(s: String) = if(s.startsWith("\"")) s.substring(1, s.length - 1) else s
 
-    val params = contentType match {
+    val parameters = contentType match {
       case MimeTypes.`multipart/form-data` =>
-        val params = new ListBuffer[Request.QueryParam]
+        val params = new HashMap[String, String]
         val ct = headers("Content-Type").head.split("; *")
         val boundary = ct.find(_.startsWith("boundary=")).get.substring(9)
         val mpr = new MultipartReader(boundary, req.getInputStream, uploadSizeLimit)
@@ -43,22 +43,21 @@ trait Servlets { this: HttpServer =>
           mpr.read() foreach { m =>
             if(m.filename.isDefined) {
               uploadsValue += stripQuotes(m.name.get) -> m.data
-              params += Request.StringQueryParam(stripQuotes(m.name.get), stripQuotes(m.filename.get))
-            } else params += new Request.StringQueryParam(stripQuotes(m.name.get),
-                new String(m.data, req.getCharacterEncoding.fromNull.getOrElse("ASCII")))
+              params(stripQuotes(m.name.get)) = stripQuotes(m.filename.get)
+            } else params(stripQuotes(m.name.get)) = new String(m.data, req.getCharacterEncoding.fromNull.getOrElse("ASCII"))
           }
         }
-        params.toList
+        params.toMap
       
       case MimeTypes.`application/x-www-form-urlencoded` =>
-        val params = new ListBuffer[Request.QueryParam]
+        val params = new HashMap[String, String]
         val enum = req.getParameterNames
         while(enum.hasMoreElements) {
           val name = enum.nextElement.asInstanceOf[String]
           for(value <- req.getParameterValues(name))
-            params += new Request.StringQueryParam(name, value)
+            params(name) = value
         }
-        params.toList
+        params.toMap
     }
 
     private val input = {
