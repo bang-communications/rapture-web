@@ -86,7 +86,7 @@ trait Servlets { this: HttpServer =>
   }
 
   abstract class ServletWrapper extends HttpServlet { wrapper =>
-    implicit val zone = Zone("servlet")
+    implicit private val zone = Zone("servlet")
 
     def handle(req: WebRequest): Response
 

@@ -31,7 +31,7 @@ trait StandaloneHttpServer extends HttpServer {
   val server = new Server(serverPort)
   val sch = new ServletContextHandler(server, "/", true, false)
   
-  implicit val zone2 = Zone("init")
+  implicit private val zone2 = Zone("init")
   
   final def start() = {
     try {
@@ -54,7 +54,7 @@ trait OsgiHttpServer extends HttpServer with BundleActivator {
   
   import Osgi._
   
-  implicit val zone2 = Zone("osgi")
+  implicit private val zone2 = Zone("osgi")
   
   private var _bundleContext: BundleContext = _
   private var trackedService: Option[ServiceTracker] = None
@@ -103,7 +103,7 @@ trait HttpServer extends DelayedInit with Servlets with RequestHandlers with Req
 
   type WebRequest <: Request
 
-  implicit val zone = Zone("web")
+  implicit private val zone = Zone("web")
   
   def makeRequest(req: HttpServletRequest, resp: HttpServletResponse): WebRequest
 
