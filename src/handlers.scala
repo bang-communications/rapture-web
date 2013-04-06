@@ -1,7 +1,5 @@
 package rapture.web
 
-import org.osgi.framework._
-import org.osgi.util.tracker._
 import scala.xml._
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.ListMap

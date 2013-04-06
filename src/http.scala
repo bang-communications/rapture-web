@@ -1,7 +1,5 @@
 package rapture.web
 
-import org.osgi.framework._
-import org.osgi.util.tracker._
 import scala.xml._
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.ListMap
@@ -50,7 +48,7 @@ trait StandaloneHttpServer extends HttpServer {
 
 }
 
-trait OsgiHttpServer extends HttpServer with BundleActivator {
+/*trait OsgiHttpServer extends HttpServer with BundleActivator {
   
   import Osgi._
   
@@ -95,7 +93,7 @@ trait OsgiHttpServer extends HttpServer with BundleActivator {
     unregisterServlet()
   }
   
-}
+}*/
 
 
 /** This trait provides a nice interface to the HTTP server */

@@ -1,4 +1,4 @@
-package rapture.web
+/*package rapture.web
 
 import rapture.io._
 
@@ -79,4 +79,4 @@ object Osgi {
       case Add(svc) => svcs.synchronized { setter(svc:: svcs) }
       case Remove(svc) => svcs.synchronized { setter(svcs.filter(_ != svc)) }
     }
-}
+}*/
