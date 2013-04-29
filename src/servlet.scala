@@ -26,7 +26,7 @@ trait Servlets { this: HttpServer =>
     def servicePathString = req.getServletPath
     def remainderString = req.getPathInfo.fromNull.getOrElse("")
     
-    def uploadSizeLimit = 10*1024*1024
+    def uploadSizeLimit = 50*1024*1024
     private var uploadsValue: Map[String, Array[Byte]] = Map[String, Array[Byte]]()
 
     def fileUploads: Map[String, Array[Byte]] = uploadsValue
