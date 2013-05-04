@@ -8,6 +8,8 @@ import javax.servlet.http._
 
 import rapture.io._
 
+import strategy.ThrowExceptions
+
 import rapture.html._
 
 

@@ -3,7 +3,9 @@ import javax.servlet.http._
 import java.nio.ByteBuffer
 import java.io._
 import scala.collection.mutable.{Map => _, _}
-import rapture.io._
+import rapture.io.{log => rlog, _}
+
+import strategy.ThrowExceptions
 
 trait Servlets { this: HttpServer =>
   class BasicRequest(req: HttpServletRequest, resp: HttpServletResponse) extends Request {
@@ -95,8 +97,8 @@ trait Servlets { this: HttpServer =>
       val vReq = try {
         makeRequest(req, resp)
       } catch { case e: Exception =>
-        rapture.io.log.warn("Failure during creation of Request object.")
-        rapture.io.log.exception(e)
+        rlog.warn("Failure during creation of Request object.")
+        rlog.exception(e)
         throw e
       }
 
@@ -158,11 +160,11 @@ trait Servlets { this: HttpServer =>
             resp.sendRedirect(location)
         }
       } catch { case e: Exception =>
-        rapture.io.log.warn("Failure during response generation")
-        rapture.io.log.exception(e)
+        rlog.warn("Failure during response generation")
+        rlog.exception(e)
         throw e
       } finally {
-        rapture.io.log.debug("Request handled in "+(System.currentTimeMillis - t0)+"ms")
+        rlog.debug("Request handled in "+(System.currentTimeMillis - t0)+"ms")
       }
       r
     }
