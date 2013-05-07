@@ -8,7 +8,7 @@ import javax.servlet.http._
 
 import rapture.io._
 
-import strategy.ThrowExceptions
+import strategy.throwExceptions
 
 import rapture.html._
 
@@ -74,6 +74,14 @@ trait RequestHandlers extends LpRequestHandlers { this: HttpServer =>
     })
   }
   
+  implicit val byteInputHandler = new Handler[Input[Byte] with TypedInput] {
+    def response(in: (Input[Byte] with TypedInput)) = ByteStreamResponse(200, Response.NoCache,
+        in.mimeType, { os =>
+      in > os
+      os.close()
+    })
+  }
+
   implicit def fileHandler = new Handler[FileUrl] {
     def response(file: FileUrl) = FileResponse(200, Response.NoCache,
         file.extension.toList.flatMap(MimeTypes.extension).headOption.getOrElse(

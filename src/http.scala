@@ -17,7 +17,6 @@ trait BasicRequests { this: HttpServer =>
   def makeRequest(req: HttpServletRequest, resp: HttpServletResponse) = new BasicRequest(req, resp)
 }
 
-
 trait StandaloneHttpServer extends HttpServer {
 
   import org.eclipse.jetty.server.Server
@@ -47,54 +46,6 @@ trait StandaloneHttpServer extends HttpServer {
   final def stop() = for(action <- stopTasks) action()
 
 }
-
-/*trait OsgiHttpServer extends HttpServer with BundleActivator {
-  
-  import Osgi._
-  
-  implicit private val zone2 = Zone("osgi")
-  
-  private var _bundleContext: BundleContext = _
-  private var trackedService: Option[ServiceTracker] = None
- 
-  private def unregisterServlet() = trackedService.foreach(_.close())
-
-  /** Registers the servlet with the HTTP service when it becomes available, and unregisters it
-    * when it ceases to be available */
-  private def registerServlet() = {
-    import org.osgi.service.http._
-    trackedService = Some(trackService[HttpService] {
-      case Add(httpService) =>
-        httpService.registerServlet("/", httpServlet, null, null)
-      case Change(_) =>
-      case Remove(httpService) =>
-        httpService.unregister("/")
-    })
-  }
-
-  implicit final def bundleContext: BundleContext = _bundleContext
-  
-  final def start(context: BundleContext) = {
-    try {
-      _bundleContext = context
-      for(action <- initCode) action()
-      for(action <- startTasks) action()
-      registerServlet()
-    } catch {
-      case e: Exception =>
-        log.error("Failed to start: ")
-        log.exception(e)
-    }
-  }
-
-  final def stop(context: BundleContext) = {
-    _bundleContext = null
-    for(action <- stopTasks) action()
-    unregisterServlet()
-  }
-  
-}*/
-
 
 /** This trait provides a nice interface to the HTTP server */
 trait HttpServer extends DelayedInit with Servlets with RequestHandlers with RequestExtractors {

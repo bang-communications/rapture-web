@@ -29,6 +29,8 @@ case class StreamResponse(code: Int, headers: Seq[(String, String)],
     contentType: MimeTypes.MimeType, send: Output[Char] => Unit)(implicit enc: Encodings.Encoding) extends Response {
   def encoding = enc
 }
+case class ByteStreamResponse(code: Int, headers: Seq[(String, String)],
+    contentType: MimeTypes.MimeType, send: Output[Byte] => Unit) extends Response
 case class ErrorResponse(code: Int, headers: Seq[(String, String)],
     message: String, detail: String) extends Response
 case class FileResponse(code: Int, headers: Seq[(String, String)],

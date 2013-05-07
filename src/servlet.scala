@@ -5,7 +5,7 @@ import java.io._
 import scala.collection.mutable.{Map => _, _}
 import rapture.io.{log => rlog, _}
 
-import strategy.ThrowExceptions
+import strategy.throwExceptions
 
 trait Servlets { this: HttpServer =>
   class BasicRequest(req: HttpServletRequest, resp: HttpServletResponse) extends Request {
@@ -145,6 +145,11 @@ trait Servlets { this: HttpServer =>
             resp.setContentType(ct.name+"; charset="+enc.name)
             val w = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(), enc.name))
             ensuring(new CharOutput(w))(send)(_.close())
+          
+          case sr@ByteStreamResponse(_, _, ct, send) =>
+            resp.setContentType(ct.name)
+            val w = resp.getOutputStream()
+            ensuring(new ByteOutput(w))(send)(_.close())
           
           case ErrorResponse(code, _, message, _) =>
             resp.sendError(code, message)
