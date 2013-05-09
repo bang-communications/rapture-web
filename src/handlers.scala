@@ -66,6 +66,14 @@ trait RequestHandlers extends LpRequestHandlers { this: HttpServer =>
     })
   }
   
+  implicit def cssHandler(implicit enc: Encodings.Encoding) = new Handler[Css.Stylesheet] {
+    def response(css: Css.Stylesheet) = StreamResponse(200, Response.NoCache,
+        MimeTypes.`text/css`, { os =>
+      css.toString.input > os
+      os.close()
+    })
+  }
+  
   implicit def stringHandler(implicit enc: Encodings.Encoding) = new Handler[String] {
     def response(t: String) = StreamResponse(200, Response.NoCache,
         MimeTypes.`text/plain`, { os =>
