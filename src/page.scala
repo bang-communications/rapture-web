@@ -122,8 +122,9 @@ object Layout {
 
     implicit val tinyMceEditorRenderer =
       new Renderer[String, Field[String], HtmlEditor] {
+        import Css._
         def render(f: Field[String], w: HtmlEditor) =
-          textarea(style -> "width: 100%", Html5.name -> f.name, cls -> "mceEditorCustom")(raw(f.fieldValue))
+          textarea(style -> width(100%%), Html5.name -> f.name, cls -> "mceEditorCustom")(raw(f.fieldValue))
       }
   }
   

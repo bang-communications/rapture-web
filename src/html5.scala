@@ -87,7 +87,7 @@ class Html5 extends ElementClasses with HtmlDefs with AttributeClasses with Seri
   val charset = new AttributeKey[String, MetaAttributes with ScriptAttributes]("charset")
   
   val style = new Tag[Text, Metadata with Flow, GlobalAttributes]("style") with
-      BaseAttributeKey[String, GlobalAttributes] { val key = "style" }
+      BaseAttributeKey[Css.Properties, GlobalAttributes] { val key = "style" }
   
   val scoped = new AttributeKey[String, StyleAttributes]("scoped")
   
@@ -488,3 +488,39 @@ class Html5 extends ElementClasses with HtmlDefs with AttributeClasses with Seri
 }
 
 object Html5 extends Html5
+
+object Html extends Html5 with Css3 {
+  override val target = new AttributeKey[String, BaseAttributes with LinkAttributes with AAttributes with
+      AreaAttributes with FormAttributes with InputAttributes with ButtonAttributes]("target") with BaseCssAttribute {
+    val att = "target"
+  }
+
+  override val size = new AttributeKey[Int, InputAttributes with SelectAttributes]("size") with BaseCssAttribute {
+    val att = "size"
+  }
+  
+  override val mark = new Tag[Phrasing, Phrasing, AttributeType]("mark") with BaseCssAttribute {
+    val att = "mark"
+  }
+  
+  override val content = new AttributeKey[String, MetaAttributes]("content") with BaseCssAttribute {
+    val att = "content"
+  }
+  
+  override val icon = new AttributeKey[String, CommandAttributes]("icon") with BaseCssAttribute { def att = "icon" }
+  
+  override val width = new AttributeKey[Int, ImgAttributes with IframeAttributes with EmbedAttributes with
+      ObjectAttributes with VideoAttributes with CanvasAttributes with InputAttributes]("width") with BaseCssAttribute with CssLengthVal with CssPercentVal with AutoVal { def att = "width" }
+  
+  override val height = new AttributeKey[Int, ImgAttributes with IframeAttributes with EmbedAttributes with
+      ObjectAttributes with VideoAttributes with CanvasAttributes with InputAttributes]("height") with BaseCssAttribute with CssLengthVal with CssPercentVal with AutoVal { def att = "height" }
+  
+  override val color = new TypeOption with BaseCssAttribute with ColorVal { def typeName = "color"; def att = "color" }
+  
+  override val small = new Tag[Phrasing, Phrasing, AttributeType]("small", block = false) with FontSize
+  override val hidden = new TypeOption with BorderStyle { def typeName = "hidden"; def name = "hidden" }
+  override val table = new Tag[TableItems, Flow, AreaAttributes]("table") with Display
+  override val sub = new Tag[Phrasing, Phrasing, AttributeType]("sub", block = false) with VerticalAlign { def att = "sub" }
+  override val pre = new Tag[Phrasing, Flow, AttributeType]("pre") with Whitespace
+
+}

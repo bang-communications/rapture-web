@@ -35,6 +35,7 @@ trait HtmlDefs { this: Html5 =>
   implicit val pathStringable = new Stringable[Link](_.toString)
   implicit val methodStringable = new Stringable[HttpMethods.FormMethod](_.toString.toLowerCase)
   implicit val mimeTypeStringable = new Stringable[MimeTypes.MimeType](_.name)
+  implicit val propertiesStringable = new Stringable[Css.Properties](_.toString)
 
   trait AttributeType
   class Attribute[+AttributeType](val key: String, val value: String)

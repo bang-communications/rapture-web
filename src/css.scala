@@ -39,7 +39,6 @@ trait Css {
 
   case class Properties(props: List[Property]) {
     override def toString = props.reverse.map(_.short).mkString(";")
-    def +(property: Property) = Properties(property :: props)
     def +(properties: Properties) = Properties(properties.props ::: props)
   }
   implicit def propertyToProperties(prop: Property) = Properties(List(prop))
@@ -47,18 +46,19 @@ trait Css {
   class Property(att: String, value: String) {
     override def toString = att+": "+value
     def short = att+":"+value
-    def +(property: Property) = Properties(property :: this :: Nil)
-    def +(properties: Properties) = Properties(properties.props ::: List(this))
-    def unary_! = new Property(att, value+" !important")
+    def unary_! = new Properties(List(new Property(att, value+" !important")))
   }
 
   trait CssAttributeStringable[T] { def string(t: T): String }
 
-  implicit val stringStringable = new CssAttributeStringable[String] { def string(t: String) = t }
+  implicit val stringStringable2 = new CssAttributeStringable[String] { def string(t: String) = t }
 
-  class CssAttribute(val att: String) {
-    def apply(i: inherit.type): Property = prop("inherit")
-    def prop(v: String) = new Property(att, v)
+  trait BaseCssAttribute {
+    def att: String
+    def prop(v: String) = new Properties(List(new Property(att, v)))
+  }
+  class CssAttribute(val att: String) extends BaseCssAttribute {
+    def apply(i: inherit.type): Properties = prop("inherit")
   }
 
   object inherit
@@ -132,7 +132,7 @@ trait CssTypes extends Css {
   class FixedScroll(val fs: String)
   object fixed extends FixedScroll("fixed")
   object scroll extends FixedScroll("scroll")
-  trait FixedScrollVal extends CssAttribute { def apply(v: FixedScroll) = prop(v.fs) }
+  trait FixedScrollVal extends BaseCssAttribute { def apply(v: FixedScroll) = prop(v.fs) }
 
   class Color(val name: String)
   val black = new Color("black")
@@ -157,29 +157,29 @@ trait CssTypes extends Css {
   def rgba(r: Int, g: Int, b: Int, a: Double) = new Color("rgb("+r+", "+g+", "+b+", "+a+")")
   val transparent = new Color("transparent")
   val currentColor = new Color("currentColor")
-  trait ColorVal extends CssAttribute { def apply(v: Color) = prop(v.name) }
-  trait FourColorVal extends CssAttribute { def apply(v1: Color, v2: Color, v3: Color, v4: Color) = prop(List(v1, v2, v3, v4).map(_.name).mkString(" ")) }
+  trait ColorVal extends BaseCssAttribute { def apply(v: Color) = prop(v.name) }
+  trait FourColorVal extends BaseCssAttribute { def apply(v1: Color, v2: Color, v3: Color, v4: Color) = prop(List(v1, v2, v3, v4).map(_.name).mkString(" ")) }
 
-  trait UriVal extends CssAttribute {
+  trait UriVal extends BaseCssAttribute {
     def url(lnk: Link) = "url(\""+lnk.toString+"\")"
     def apply(uri: Link) = prop(url(uri))
   }
 
   object none extends BorderStyle { def name = "none" }
-  trait NoneVal extends CssAttribute { def apply(n: none.type) = prop("none") }
+  trait NoneVal extends BaseCssAttribute { def apply(n: none.type) = prop("none") }
  
   object collapse
-  trait CollapseVal extends CssAttribute { def apply(n: collapse.type) = prop("collapse") }
+  trait CollapseVal extends BaseCssAttribute { def apply(n: collapse.type) = prop("collapse") }
   
   object separate
-  trait SeparateVal extends CssAttribute { def apply(n: separate.type) = prop("separate") }
+  trait SeparateVal extends BaseCssAttribute { def apply(n: separate.type) = prop("separate") }
 
   class Repetition(val name: String)
   val repeat = new Repetition("repeat")
   val repeatX = new Repetition("repeat-x")
   val repeatY = new Repetition("repeat-y")
   val noRepeat = new Repetition("no-repeat")
-  trait RepetitionVal extends CssAttribute { def apply(n: Repetition) = prop(n.name) }
+  trait RepetitionVal extends BaseCssAttribute { def apply(n: Repetition) = prop(n.name) }
 
   trait TopBottom { def att: String }
   trait LeftRight { def att: String }
@@ -198,6 +198,7 @@ trait CssTypes extends Css {
     def mm = CssLength(i+"mm")
     def pt = CssLength(i+"pt")
     def pc = CssLength(i+"pc")
+    def %% = CssPercent(i)
   }
   
   implicit class DoubleLengths(d: Double) {
@@ -210,28 +211,28 @@ trait CssTypes extends Css {
     def pc = CssLength(d+"pc")
   }
 
-  trait CssLengthVal extends CssAttribute { def apply(n: CssLength) = prop(n.s) }
+  trait CssLengthVal extends BaseCssAttribute { def apply(n: CssLength) = prop(n.s) }
   
-  type CssPercent = Int => Int
+  case class CssPercent(n: Int) { def text = n+"%" }
   
-  trait CssPercentVal extends CssAttribute { def apply(n: CssPercent) = prop(n(Int.MaxValue)+"%") }
+  trait CssPercentVal extends BaseCssAttribute { def apply(n: CssPercent) = prop(n.text) }
 
   class BgClip(val name: String)
   val borderBox = new BgClip("border-box")
   val paddingBox = new BgClip("padding-box")
   val contentBox = new BgClip("content-box")
-  trait BgClipVal extends CssAttribute { def apply(n: BgClip) = prop(n.name) }
+  trait BgClipVal extends BaseCssAttribute { def apply(n: BgClip) = prop(n.name) }
 
   class BgSize(val name: String)
   val cover = new BgSize("cover")
   val contain = new BgSize("contain")
-  trait BgSizeVal extends CssAttribute { def apply(n: BgSize) = prop(n.name) }
+  trait BgSizeVal extends BaseCssAttribute { def apply(n: BgSize) = prop(n.name) }
 
   class Thickness(val name: String)
   val thin = new Thickness("thin")
   val medium = new Thickness("medium") with FontSize
   val thick = new Thickness("thick")
-  trait ThicknessVal extends CssAttribute { def apply(n: Thickness) = prop(n.name) }
+  trait ThicknessVal extends BaseCssAttribute { def apply(n: Thickness) = prop(n.name) }
 
   trait BorderStyle { def name: String }
   val hidden = new BorderStyle { def name = "hidden" }
@@ -243,10 +244,10 @@ trait CssTypes extends Css {
   val ridge = new BorderStyle { def name = "ridge" }
   val inset = new BorderStyle { def name = "inset" }
   val outset = new BorderStyle { def name = "outset" }
-  trait BorderStyleVal extends CssAttribute { def apply(bs: BorderStyle) = prop(bs.name) }
+  trait BorderStyleVal extends BaseCssAttribute { def apply(bs: BorderStyle) = prop(bs.name) }
 
 
-  trait BorderOptions extends CssAttribute {
+  trait BorderOptions extends BaseCssAttribute {
     def apply(len: CssLength) = prop(len.s)
     def apply(th: Thickness) = prop(th.name)
     def apply(len: CssLength, st: BorderStyle) = prop(len.s+" "+st.name)
@@ -258,7 +259,7 @@ trait CssTypes extends Css {
   }
 
   object auto
-  trait AutoVal extends CssAttribute { def apply(a: auto.type) = prop("auto") }
+  trait AutoVal extends BaseCssAttribute { def apply(a: auto.type) = prop("auto") }
 
   trait GenericFont { def name: String }
   val serif = new GenericFont { def name = "serif" }
@@ -267,7 +268,7 @@ trait CssTypes extends Css {
   val fantasy = new GenericFont { def name = "fantasy" }
   val monospace = new GenericFont { def name = "monospace" }
 
-  trait FontFamilyVal extends CssAttribute {
+  trait FontFamilyVal extends BaseCssAttribute {
     def apply(s: String) = prop("\""+s+"\"")
     def apply(f: GenericFont) = prop(f.name)
   }
@@ -281,28 +282,28 @@ trait CssTypes extends Css {
   val xLarge = new FontSize { def name = "x-large" }
   val xxLarge = new FontSize { def name = "xx-large" }
   val larger = new FontSize { def name = "larger" }
-  trait FontSizeVal extends CssAttribute { def apply(f: FontSize) = prop(f.name) }
+  trait FontSizeVal extends BaseCssAttribute { def apply(f: FontSize) = prop(f.name) }
 
 
   trait FontStyle { def name: String }
   object normal
-  trait NormalVal extends CssAttribute { def apply(n: normal.type) = prop("normal") }
+  trait NormalVal extends BaseCssAttribute { def apply(n: normal.type) = prop("normal") }
 
   val italic = new FontStyle { def name = "italic" }
   val oblique = new FontStyle { def name = "oblique" }
-  trait FontStyleVal extends CssAttribute with NormalVal { def apply(f: FontStyle) = prop(f.name) }
+  trait FontStyleVal extends BaseCssAttribute with NormalVal { def apply(f: FontStyle) = prop(f.name) }
 
   trait FontVariant { def name: String }
   val smallCaps = new FontVariant { def name = "small-caps" }
-  trait FontVariantVal extends CssAttribute with NormalVal { def apply(f: FontVariant) = prop(f.name) }
+  trait FontVariantVal extends BaseCssAttribute with NormalVal { def apply(f: FontVariant) = prop(f.name) }
 
   trait FontWeight { def name: String }
   val bold = new FontWeight { def name = "bold" }
   val bolder = new FontWeight { def name = "bolder" }
   val lighter = new FontWeight { def name = "lighter" }
-  trait FontWeightVal extends CssAttribute with NormalVal { def apply(f: FontWeight) = prop(f.name) }
-  trait IntVal extends CssAttribute { def apply(i: Int) = prop(i.toString) }
-  trait DoubleVal extends CssAttribute { def apply(d: Double) = prop(d.toString) }
+  trait FontWeightVal extends BaseCssAttribute with NormalVal { def apply(f: FontWeight) = prop(f.name) }
+  trait IntVal extends BaseCssAttribute { def apply(i: Int) = prop(i.toString) }
+  trait DoubleVal extends BaseCssAttribute { def apply(d: Double) = prop(d.toString) }
 
   trait FontStretch { def name: String }
   val wider = new FontStretch { def name = "wider" }
@@ -315,11 +316,11 @@ trait CssTypes extends Css {
   val expanded = new FontStretch { def name = "expanded" }
   val extraExpanded = new FontStretch { def name = "extra-expanded" }
   val ultraExpanded = new FontStretch { def name = "ultra-expanded" }
-  trait FontStretchVal extends CssAttribute with NormalVal { def apply(s: FontStretch) = prop(s.name) }
+  trait FontStretchVal extends BaseCssAttribute with NormalVal { def apply(s: FontStretch) = prop(s.name) }
 
   trait ClearOpt { def name: String }
   val both = new ClearOpt { def name = "both" }
-  trait ClearOptVal extends CssAttribute { def apply(s: ClearOpt) = prop(s.name) }
+  trait ClearOptVal extends BaseCssAttribute { def apply(s: ClearOpt) = prop(s.name) }
 
   trait Display { def name: String }
   val box = new Display { def name = "box" }
@@ -340,10 +341,10 @@ trait CssTypes extends Css {
   val tableHeaderGroup = new Display { def name = "table-header-group" }
   val tableRow = new Display { def name = "table-row" }
   val tableRowGroup = new Display { def name = "table-row-group" }
-  trait DisplayVal extends CssAttribute { def apply(d: Display) = prop(d.name) }
+  trait DisplayVal extends BaseCssAttribute { def apply(d: Display) = prop(d.name) }
   
   trait FloatOpt { def name: String }
-  trait FloatOptVal extends CssAttribute { def apply(d: FloatOpt) = prop(d.name) }
+  trait FloatOptVal extends BaseCssAttribute { def apply(d: FloatOpt) = prop(d.name) }
   object justify
 
   trait Decoration { def name: String }
@@ -351,13 +352,13 @@ trait CssTypes extends Css {
   val overline = new Decoration { def name = "overline" }
   val lineThrough = new Decoration { def name = "line-through" }
   val blink = new Decoration { def name = "blink" }
-  trait DecorationVal extends CssAttribute { def apply(d: Decoration) = prop(d.name) }
+  trait DecorationVal extends BaseCssAttribute { def apply(d: Decoration) = prop(d.name) }
   
   trait TextTransform { def name: String }
   val capitalize = new TextTransform { def name = "capitalize" }
   val uppercase = new TextTransform { def name = "uppercase" }
   val lowercase = new TextTransform { def name = "lowercase" }
-  trait TextTransformVal extends CssAttribute { def apply(d: TextTransform) = prop(d.name) }
+  trait TextTransformVal extends BaseCssAttribute { def apply(d: TextTransform) = prop(d.name) }
 
   val baseline = new VerticalAlign { def att = "baseline" }
   val sub = new VerticalAlign { def att = "sub" }
@@ -365,14 +366,14 @@ trait CssTypes extends Css {
   val textTop = new VerticalAlign { def att = "text-top" }
   val middle = new VerticalAlign { def att = "middle" }
   val textBottom = new VerticalAlign { def att = "text-bottom" }
-  trait VerticalAlignVal extends CssAttribute { def apply(v: VerticalAlign) = prop(v.att) }
+  trait VerticalAlignVal extends BaseCssAttribute { def apply(v: VerticalAlign) = prop(v.att) }
   
   trait Whitespace { def name: String }
   val nowrap = new Whitespace { def name = "nowrap" }
   val pre = new Whitespace { def name = "pre" }
   val preLine = new Whitespace { def name = "pre-line" }
   val preWrap = new Whitespace { def name = "pre-wrap" }
-  trait WhitespaceVal extends CssAttribute { def apply(v: Whitespace) = prop(v.name) }
+  trait WhitespaceVal extends BaseCssAttribute { def apply(v: Whitespace) = prop(v.name) }
 
 }
 
@@ -381,315 +382,315 @@ trait Css1 extends CssTypes {
     def apply(lr: LeftRight) = prop(lr.att)
     def apply(tb: TopBottom) = prop(tb.att)
     def apply(len: CssLength) = prop(len.s)
-    def apply(pc: CssPercent) = prop(pc(Int.MaxValue)+"%")
+    def apply(pc: CssPercent) = prop(pc.text)
     def apply(lr: LeftRight, tb: TopBottom) = prop(lr.att+" "+tb.att)
     def apply(len: CssLength, tb: TopBottom) = prop(len.s+" "+tb.att)
-    def apply(pc: CssPercent, tb: TopBottom) = prop(pc(Int.MaxValue)+"% "+tb.att)
+    def apply(pc: CssPercent, tb: TopBottom) = prop(pc.text+" "+tb.att)
     def apply(lr: LeftRight, len: CssLength) = prop(lr.att+" "+len.s)
     def apply(len: CssLength, len2: CssLength) = prop(len.s+" "+len2.s)
-    def apply(pc: CssPercent, len: CssLength) = prop(pc(Int.MaxValue)+"% "+len.s)
-    def apply(lr: LeftRight, pc: CssPercent) = prop(lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(len: CssLength, pc: CssPercent) = prop(len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(pc: CssPercent, pc2: CssPercent) = prop(pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(pc: CssPercent, len: CssLength) = prop(pc.text+" "+len.s)
+    def apply(lr: LeftRight, pc: CssPercent) = prop(lr.att+" "+pc.text)
+    def apply(len: CssLength, pc: CssPercent) = prop(len.s+" "+pc.text)
+    def apply(pc: CssPercent, pc2: CssPercent) = prop(pc.text+" "+pc2.text)
     def apply(sc: FixedScroll, lr: LeftRight) = prop(""+sc.fs+" "+lr.att)
     def apply(sc: FixedScroll, tb: TopBottom) = prop(""+sc.fs+" "+tb.att)
     def apply(sc: FixedScroll, len: CssLength) = prop(""+sc.fs+" "+len.s)
-    def apply(sc: FixedScroll, pc: CssPercent) = prop(""+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(sc: FixedScroll, pc: CssPercent) = prop(""+sc.fs+" "+pc.text)
     def apply(sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(""+sc.fs+" "+lr.att+" "+tb.att)
     def apply(sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(""+sc.fs+" "+len.s+" "+tb.att)
-    def apply(sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(""+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(""+sc.fs+" "+pc.text+" "+tb.att)
     def apply(sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(""+sc.fs+" "+lr.att+" "+len.s)
     def apply(sc: FixedScroll, len: CssLength, len2: CssLength) = prop(""+sc.fs+" "+len.s+" "+len2.s)
-    def apply(sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(""+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(""+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(""+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(""+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(""+sc.fs+" "+pc.text+" "+len.s)
+    def apply(sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(""+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(""+sc.fs+" "+len.s+" "+pc.text)
+    def apply(sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(""+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(rep: Repetition, lr: LeftRight) = prop(rep.name+" "+lr.att)
     def apply(rep: Repetition, tb: TopBottom) = prop(rep.name+" "+tb.att)
     def apply(rep: Repetition, len: CssLength) = prop(rep.name+" "+len.s)
-    def apply(rep: Repetition, pc: CssPercent) = prop(rep.name+" "+pc(Int.MaxValue)+"%")
+    def apply(rep: Repetition, pc: CssPercent) = prop(rep.name+" "+pc.text)
     def apply(rep: Repetition, lr: LeftRight, tb: TopBottom) = prop(rep.name+" "+lr.att+" "+tb.att)
     def apply(rep: Repetition, len: CssLength, tb: TopBottom) = prop(rep.name+" "+len.s+" "+tb.att)
-    def apply(rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(rep.name+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(rep.name+" "+pc.text+" "+tb.att)
     def apply(rep: Repetition, lr: LeftRight, len: CssLength) = prop(rep.name+" "+lr.att+" "+len.s)
     def apply(rep: Repetition, len: CssLength, len2: CssLength) = prop(rep.name+" "+len.s+" "+len2.s)
-    def apply(rep: Repetition, pc: CssPercent, len: CssLength) = prop(rep.name+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(rep.name+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(rep: Repetition, len: CssLength, pc: CssPercent) = prop(rep.name+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(rep.name+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(rep: Repetition, pc: CssPercent, len: CssLength) = prop(rep.name+" "+pc.text+" "+len.s)
+    def apply(rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(rep.name+" "+lr.att+" "+pc.text)
+    def apply(rep: Repetition, len: CssLength, pc: CssPercent) = prop(rep.name+" "+len.s+" "+pc.text)
+    def apply(rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(rep.name+" "+pc.text+" "+pc2.text)
     def apply(rep: Repetition, sc: FixedScroll, lr: LeftRight) = prop(rep.name+" "+sc.fs+" "+lr.att)
     def apply(rep: Repetition, sc: FixedScroll, tb: TopBottom) = prop(rep.name+" "+sc.fs+" "+tb.att)
     def apply(rep: Repetition, sc: FixedScroll, len: CssLength) = prop(rep.name+" "+sc.fs+" "+len.s)
-    def apply(rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(rep.name+" "+sc.fs+" "+pc.text)
     def apply(rep: Repetition, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(rep.name+" "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(rep: Repetition, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(rep.name+" "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(rep.name+" "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(rep: Repetition, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(rep.name+" "+sc.fs+" "+lr.att+" "+len.s)
     def apply(rep: Repetition, sc: FixedScroll, len: CssLength, len2: CssLength) = prop(rep.name+" "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(rep.name+" "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(rep.name+" "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(rep.name+" "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(rep.name+" "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(rep.name+" "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(rep.name+" "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(noIm: none.type, lr: LeftRight) = prop("none "+lr.att)
     def apply(noIm: none.type, tb: TopBottom) = prop("none "+tb.att)
     def apply(noIm: none.type, len: CssLength) = prop("none "+len.s)
-    def apply(noIm: none.type, pc: CssPercent) = prop("none "+pc(Int.MaxValue)+"%")
+    def apply(noIm: none.type, pc: CssPercent) = prop("none "+pc.text)
     def apply(noIm: none.type, lr: LeftRight, tb: TopBottom) = prop("none "+lr.att+" "+tb.att)
     def apply(noIm: none.type, len: CssLength, tb: TopBottom) = prop("none "+len.s+" "+tb.att)
-    def apply(noIm: none.type, pc: CssPercent, tb: TopBottom) = prop("none "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(noIm: none.type, pc: CssPercent, tb: TopBottom) = prop("none "+pc.text+" "+tb.att)
     def apply(noIm: none.type, lr: LeftRight, len: CssLength) = prop("none "+lr.att+" "+len.s)
     def apply(noIm: none.type, len: CssLength, len2: CssLength) = prop("none "+len.s+" "+len2.s)
-    def apply(noIm: none.type, pc: CssPercent, len: CssLength) = prop("none "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(noIm: none.type, lr: LeftRight, pc: CssPercent) = prop("none "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(noIm: none.type, len: CssLength, pc: CssPercent) = prop("none "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(noIm: none.type, pc: CssPercent, pc2: CssPercent) = prop("none "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(noIm: none.type, pc: CssPercent, len: CssLength) = prop("none "+pc.text+" "+len.s)
+    def apply(noIm: none.type, lr: LeftRight, pc: CssPercent) = prop("none "+lr.att+" "+pc.text)
+    def apply(noIm: none.type, len: CssLength, pc: CssPercent) = prop("none "+len.s+" "+pc.text)
+    def apply(noIm: none.type, pc: CssPercent, pc2: CssPercent) = prop("none "+pc.text+" "+pc2.text)
     def apply(noIm: none.type, sc: FixedScroll, lr: LeftRight) = prop("none "+sc.fs+" "+lr.att)
     def apply(noIm: none.type, sc: FixedScroll, tb: TopBottom) = prop("none "+sc.fs+" "+tb.att)
     def apply(noIm: none.type, sc: FixedScroll, len: CssLength) = prop("none "+sc.fs+" "+len.s)
-    def apply(noIm: none.type, sc: FixedScroll, pc: CssPercent) = prop("none "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(noIm: none.type, sc: FixedScroll, pc: CssPercent) = prop("none "+sc.fs+" "+pc.text)
     def apply(noIm: none.type, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop("none "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(noIm: none.type, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop("none "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(noIm: none.type, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop("none "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(noIm: none.type, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop("none "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(noIm: none.type, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop("none "+sc.fs+" "+lr.att+" "+len.s)
     def apply(noIm: none.type, sc: FixedScroll, len: CssLength, len2: CssLength) = prop("none "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(noIm: none.type, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop("none "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(noIm: none.type, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop("none "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(noIm: none.type, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop("none "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(noIm: none.type, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop("none "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(noIm: none.type, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop("none "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(noIm: none.type, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop("none "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(noIm: none.type, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop("none "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(noIm: none.type, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop("none "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(noIm: none.type, rep: Repetition, lr: LeftRight) = prop("none "+rep.name+" "+lr.att)
     def apply(noIm: none.type, rep: Repetition, tb: TopBottom) = prop("none "+rep.name+" "+tb.att)
     def apply(noIm: none.type, rep: Repetition, len: CssLength) = prop("none "+rep.name+" "+len.s)
-    def apply(noIm: none.type, rep: Repetition, pc: CssPercent) = prop("none "+rep.name+" "+pc(Int.MaxValue)+"%")
+    def apply(noIm: none.type, rep: Repetition, pc: CssPercent) = prop("none "+rep.name+" "+pc.text)
     def apply(noIm: none.type, rep: Repetition, lr: LeftRight, tb: TopBottom) = prop("none "+rep.name+" "+lr.att+" "+tb.att)
     def apply(noIm: none.type, rep: Repetition, len: CssLength, tb: TopBottom) = prop("none "+rep.name+" "+len.s+" "+tb.att)
-    def apply(noIm: none.type, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop("none "+rep.name+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(noIm: none.type, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop("none "+rep.name+" "+pc.text+" "+tb.att)
     def apply(noIm: none.type, rep: Repetition, lr: LeftRight, len: CssLength) = prop("none "+rep.name+" "+lr.att+" "+len.s)
     def apply(noIm: none.type, rep: Repetition, len: CssLength, len2: CssLength) = prop("none "+rep.name+" "+len.s+" "+len2.s)
-    def apply(noIm: none.type, rep: Repetition, pc: CssPercent, len: CssLength) = prop("none "+rep.name+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(noIm: none.type, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop("none "+rep.name+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(noIm: none.type, rep: Repetition, len: CssLength, pc: CssPercent) = prop("none "+rep.name+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(noIm: none.type, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop("none "+rep.name+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(noIm: none.type, rep: Repetition, pc: CssPercent, len: CssLength) = prop("none "+rep.name+" "+pc.text+" "+len.s)
+    def apply(noIm: none.type, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop("none "+rep.name+" "+lr.att+" "+pc.text)
+    def apply(noIm: none.type, rep: Repetition, len: CssLength, pc: CssPercent) = prop("none "+rep.name+" "+len.s+" "+pc.text)
+    def apply(noIm: none.type, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop("none "+rep.name+" "+pc.text+" "+pc2.text)
     def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight) = prop("none "+rep.name+" "+sc.fs+" "+lr.att)
     def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, tb: TopBottom) = prop("none "+rep.name+" "+sc.fs+" "+tb.att)
     def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength) = prop("none "+rep.name+" "+sc.fs+" "+len.s)
-    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop("none "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop("none "+rep.name+" "+sc.fs+" "+pc.text)
     def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop("none "+rep.name+" "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop("none "+rep.name+" "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop("none "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop("none "+rep.name+" "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop("none "+rep.name+" "+sc.fs+" "+lr.att+" "+len.s)
     def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength, len2: CssLength) = prop("none "+rep.name+" "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop("none "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop("none "+rep.name+" "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop("none "+rep.name+" "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop("none "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop("none "+rep.name+" "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop("none "+rep.name+" "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop("none "+rep.name+" "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop("none "+rep.name+" "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(uri: Link, lr: LeftRight) = prop(url(uri)+" "+lr.att)
     def apply(uri: Link, tb: TopBottom) = prop(url(uri)+" "+tb.att)
     def apply(uri: Link, len: CssLength) = prop(url(uri)+" "+len.s)
-    def apply(uri: Link, pc: CssPercent) = prop(url(uri)+" "+pc(Int.MaxValue)+"%")
+    def apply(uri: Link, pc: CssPercent) = prop(url(uri)+" "+pc.text)
     def apply(uri: Link, lr: LeftRight, tb: TopBottom) = prop(url(uri)+" "+lr.att+" "+tb.att)
     def apply(uri: Link, len: CssLength, tb: TopBottom) = prop(url(uri)+" "+len.s+" "+tb.att)
-    def apply(uri: Link, pc: CssPercent, tb: TopBottom) = prop(url(uri)+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(uri: Link, pc: CssPercent, tb: TopBottom) = prop(url(uri)+" "+pc.text+" "+tb.att)
     def apply(uri: Link, lr: LeftRight, len: CssLength) = prop(url(uri)+" "+lr.att+" "+len.s)
     def apply(uri: Link, len: CssLength, len2: CssLength) = prop(url(uri)+" "+len.s+" "+len2.s)
-    def apply(uri: Link, pc: CssPercent, len: CssLength) = prop(url(uri)+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(uri: Link, lr: LeftRight, pc: CssPercent) = prop(url(uri)+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(uri: Link, len: CssLength, pc: CssPercent) = prop(url(uri)+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(uri: Link, pc: CssPercent, pc2: CssPercent) = prop(url(uri)+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(uri: Link, pc: CssPercent, len: CssLength) = prop(url(uri)+" "+pc.text+" "+len.s)
+    def apply(uri: Link, lr: LeftRight, pc: CssPercent) = prop(url(uri)+" "+lr.att+" "+pc.text)
+    def apply(uri: Link, len: CssLength, pc: CssPercent) = prop(url(uri)+" "+len.s+" "+pc.text)
+    def apply(uri: Link, pc: CssPercent, pc2: CssPercent) = prop(url(uri)+" "+pc.text+" "+pc2.text)
     def apply(uri: Link, sc: FixedScroll, lr: LeftRight) = prop(url(uri)+" "+sc.fs+" "+lr.att)
     def apply(uri: Link, sc: FixedScroll, tb: TopBottom) = prop(url(uri)+" "+sc.fs+" "+tb.att)
     def apply(uri: Link, sc: FixedScroll, len: CssLength) = prop(url(uri)+" "+sc.fs+" "+len.s)
-    def apply(uri: Link, sc: FixedScroll, pc: CssPercent) = prop(url(uri)+" "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(uri: Link, sc: FixedScroll, pc: CssPercent) = prop(url(uri)+" "+sc.fs+" "+pc.text)
     def apply(uri: Link, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(url(uri)+" "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(uri: Link, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(url(uri)+" "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(uri: Link, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(url(uri)+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(uri: Link, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(url(uri)+" "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(uri: Link, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(url(uri)+" "+sc.fs+" "+lr.att+" "+len.s)
     def apply(uri: Link, sc: FixedScroll, len: CssLength, len2: CssLength) = prop(url(uri)+" "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(uri: Link, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(url(uri)+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(uri: Link, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(url(uri)+" "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(uri: Link, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(url(uri)+" "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(uri: Link, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(url(uri)+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(uri: Link, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(url(uri)+" "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(uri: Link, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(url(uri)+" "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(uri: Link, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(url(uri)+" "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(uri: Link, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(url(uri)+" "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(uri: Link, rep: Repetition, lr: LeftRight) = prop(url(uri)+" "+rep.name+" "+lr.att)
     def apply(uri: Link, rep: Repetition, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+tb.att)
     def apply(uri: Link, rep: Repetition, len: CssLength) = prop(url(uri)+" "+rep.name+" "+len.s)
-    def apply(uri: Link, rep: Repetition, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+pc(Int.MaxValue)+"%")
+    def apply(uri: Link, rep: Repetition, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+pc.text)
     def apply(uri: Link, rep: Repetition, lr: LeftRight, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+lr.att+" "+tb.att)
     def apply(uri: Link, rep: Repetition, len: CssLength, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+len.s+" "+tb.att)
-    def apply(uri: Link, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(uri: Link, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+pc.text+" "+tb.att)
     def apply(uri: Link, rep: Repetition, lr: LeftRight, len: CssLength) = prop(url(uri)+" "+rep.name+" "+lr.att+" "+len.s)
     def apply(uri: Link, rep: Repetition, len: CssLength, len2: CssLength) = prop(url(uri)+" "+rep.name+" "+len.s+" "+len2.s)
-    def apply(uri: Link, rep: Repetition, pc: CssPercent, len: CssLength) = prop(url(uri)+" "+rep.name+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(uri: Link, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(uri: Link, rep: Repetition, len: CssLength, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(uri: Link, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(url(uri)+" "+rep.name+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(uri: Link, rep: Repetition, pc: CssPercent, len: CssLength) = prop(url(uri)+" "+rep.name+" "+pc.text+" "+len.s)
+    def apply(uri: Link, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+lr.att+" "+pc.text)
+    def apply(uri: Link, rep: Repetition, len: CssLength, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+len.s+" "+pc.text)
+    def apply(uri: Link, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(url(uri)+" "+rep.name+" "+pc.text+" "+pc2.text)
     def apply(uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att)
     def apply(uri: Link, rep: Repetition, sc: FixedScroll, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+tb.att)
     def apply(uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+len.s)
-    def apply(uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+pc.text)
     def apply(uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att+" "+len.s)
     def apply(uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength, len2: CssLength) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(url(uri)+" "+rep.name+" "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(col: Color, lr: LeftRight) = prop(col.name+" "+lr.att)
     def apply(col: Color, tb: TopBottom) = prop(col.name+" "+tb.att)
     def apply(col: Color, len: CssLength) = prop(col.name+" "+len.s)
-    def apply(col: Color, pc: CssPercent) = prop(col.name+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, pc: CssPercent) = prop(col.name+" "+pc.text)
     def apply(col: Color, lr: LeftRight, tb: TopBottom) = prop(col.name+" "+lr.att+" "+tb.att)
     def apply(col: Color, len: CssLength, tb: TopBottom) = prop(col.name+" "+len.s+" "+tb.att)
-    def apply(col: Color, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+pc.text+" "+tb.att)
     def apply(col: Color, lr: LeftRight, len: CssLength) = prop(col.name+" "+lr.att+" "+len.s)
     def apply(col: Color, len: CssLength, len2: CssLength) = prop(col.name+" "+len.s+" "+len2.s)
-    def apply(col: Color, pc: CssPercent, len: CssLength) = prop(col.name+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, len: CssLength, pc: CssPercent) = prop(col.name+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, pc: CssPercent, len: CssLength) = prop(col.name+" "+pc.text+" "+len.s)
+    def apply(col: Color, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+lr.att+" "+pc.text)
+    def apply(col: Color, len: CssLength, pc: CssPercent) = prop(col.name+" "+len.s+" "+pc.text)
+    def apply(col: Color, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+pc.text+" "+pc2.text)
     def apply(col: Color, sc: FixedScroll, lr: LeftRight) = prop(col.name+" "+sc.fs+" "+lr.att)
     def apply(col: Color, sc: FixedScroll, tb: TopBottom) = prop(col.name+" "+sc.fs+" "+tb.att)
     def apply(col: Color, sc: FixedScroll, len: CssLength) = prop(col.name+" "+sc.fs+" "+len.s)
-    def apply(col: Color, sc: FixedScroll, pc: CssPercent) = prop(col.name+" "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, sc: FixedScroll, pc: CssPercent) = prop(col.name+" "+sc.fs+" "+pc.text)
     def apply(col: Color, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(col.name+" "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(col: Color, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(col.name+" "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(col: Color, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(col: Color, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(col.name+" "+sc.fs+" "+lr.att+" "+len.s)
     def apply(col: Color, sc: FixedScroll, len: CssLength, len2: CssLength) = prop(col.name+" "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(col: Color, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(col: Color, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(col: Color, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(col: Color, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(col: Color, rep: Repetition, lr: LeftRight) = prop(col.name+" "+rep.name+" "+lr.att)
     def apply(col: Color, rep: Repetition, tb: TopBottom) = prop(col.name+" "+rep.name+" "+tb.att)
     def apply(col: Color, rep: Repetition, len: CssLength) = prop(col.name+" "+rep.name+" "+len.s)
-    def apply(col: Color, rep: Repetition, pc: CssPercent) = prop(col.name+" "+rep.name+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, rep: Repetition, pc: CssPercent) = prop(col.name+" "+rep.name+" "+pc.text)
     def apply(col: Color, rep: Repetition, lr: LeftRight, tb: TopBottom) = prop(col.name+" "+rep.name+" "+lr.att+" "+tb.att)
     def apply(col: Color, rep: Repetition, len: CssLength, tb: TopBottom) = prop(col.name+" "+rep.name+" "+len.s+" "+tb.att)
-    def apply(col: Color, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+rep.name+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+rep.name+" "+pc.text+" "+tb.att)
     def apply(col: Color, rep: Repetition, lr: LeftRight, len: CssLength) = prop(col.name+" "+rep.name+" "+lr.att+" "+len.s)
     def apply(col: Color, rep: Repetition, len: CssLength, len2: CssLength) = prop(col.name+" "+rep.name+" "+len.s+" "+len2.s)
-    def apply(col: Color, rep: Repetition, pc: CssPercent, len: CssLength) = prop(col.name+" "+rep.name+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+rep.name+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, rep: Repetition, len: CssLength, pc: CssPercent) = prop(col.name+" "+rep.name+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+rep.name+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, rep: Repetition, pc: CssPercent, len: CssLength) = prop(col.name+" "+rep.name+" "+pc.text+" "+len.s)
+    def apply(col: Color, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+rep.name+" "+lr.att+" "+pc.text)
+    def apply(col: Color, rep: Repetition, len: CssLength, pc: CssPercent) = prop(col.name+" "+rep.name+" "+len.s+" "+pc.text)
+    def apply(col: Color, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+rep.name+" "+pc.text+" "+pc2.text)
     def apply(col: Color, rep: Repetition, sc: FixedScroll, lr: LeftRight) = prop(col.name+" "+rep.name+" "+sc.fs+" "+lr.att)
     def apply(col: Color, rep: Repetition, sc: FixedScroll, tb: TopBottom) = prop(col.name+" "+rep.name+" "+sc.fs+" "+tb.att)
     def apply(col: Color, rep: Repetition, sc: FixedScroll, len: CssLength) = prop(col.name+" "+rep.name+" "+sc.fs+" "+len.s)
-    def apply(col: Color, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(col.name+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(col.name+" "+rep.name+" "+sc.fs+" "+pc.text)
     def apply(col: Color, rep: Repetition, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(col.name+" "+rep.name+" "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(col: Color, rep: Repetition, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(col.name+" "+rep.name+" "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(col: Color, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+rep.name+" "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(col: Color, rep: Repetition, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(col.name+" "+rep.name+" "+sc.fs+" "+lr.att+" "+len.s)
     def apply(col: Color, rep: Repetition, sc: FixedScroll, len: CssLength, len2: CssLength) = prop(col.name+" "+rep.name+" "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(col: Color, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+rep.name+" "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" "+rep.name+" "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" "+rep.name+" "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(col: Color, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+rep.name+" "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(col: Color, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" "+rep.name+" "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(col: Color, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+rep.name+" "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(col: Color, noIm: none.type, lr: LeftRight) = prop(col.name+" none "+lr.att)
     def apply(col: Color, noIm: none.type, tb: TopBottom) = prop(col.name+" none "+tb.att)
     def apply(col: Color, noIm: none.type, len: CssLength) = prop(col.name+" none "+len.s)
-    def apply(col: Color, noIm: none.type, pc: CssPercent) = prop(col.name+" none "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, noIm: none.type, pc: CssPercent) = prop(col.name+" none "+pc.text)
     def apply(col: Color, noIm: none.type, lr: LeftRight, tb: TopBottom) = prop(col.name+" none "+lr.att+" "+tb.att)
     def apply(col: Color, noIm: none.type, len: CssLength, tb: TopBottom) = prop(col.name+" none "+len.s+" "+tb.att)
-    def apply(col: Color, noIm: none.type, pc: CssPercent, tb: TopBottom) = prop(col.name+" none "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, noIm: none.type, pc: CssPercent, tb: TopBottom) = prop(col.name+" none "+pc.text+" "+tb.att)
     def apply(col: Color, noIm: none.type, lr: LeftRight, len: CssLength) = prop(col.name+" none "+lr.att+" "+len.s)
     def apply(col: Color, noIm: none.type, len: CssLength, len2: CssLength) = prop(col.name+" none "+len.s+" "+len2.s)
-    def apply(col: Color, noIm: none.type, pc: CssPercent, len: CssLength) = prop(col.name+" none "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, noIm: none.type, lr: LeftRight, pc: CssPercent) = prop(col.name+" none "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, noIm: none.type, len: CssLength, pc: CssPercent) = prop(col.name+" none "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, noIm: none.type, pc: CssPercent, pc2: CssPercent) = prop(col.name+" none "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, noIm: none.type, pc: CssPercent, len: CssLength) = prop(col.name+" none "+pc.text+" "+len.s)
+    def apply(col: Color, noIm: none.type, lr: LeftRight, pc: CssPercent) = prop(col.name+" none "+lr.att+" "+pc.text)
+    def apply(col: Color, noIm: none.type, len: CssLength, pc: CssPercent) = prop(col.name+" none "+len.s+" "+pc.text)
+    def apply(col: Color, noIm: none.type, pc: CssPercent, pc2: CssPercent) = prop(col.name+" none "+pc.text+" "+pc2.text)
     def apply(col: Color, noIm: none.type, sc: FixedScroll, lr: LeftRight) = prop(col.name+" none "+sc.fs+" "+lr.att)
     def apply(col: Color, noIm: none.type, sc: FixedScroll, tb: TopBottom) = prop(col.name+" none "+sc.fs+" "+tb.att)
     def apply(col: Color, noIm: none.type, sc: FixedScroll, len: CssLength) = prop(col.name+" none "+sc.fs+" "+len.s)
-    def apply(col: Color, noIm: none.type, sc: FixedScroll, pc: CssPercent) = prop(col.name+" none "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, noIm: none.type, sc: FixedScroll, pc: CssPercent) = prop(col.name+" none "+sc.fs+" "+pc.text)
     def apply(col: Color, noIm: none.type, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(col.name+" none "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(col: Color, noIm: none.type, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(col.name+" none "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(col: Color, noIm: none.type, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" none "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, noIm: none.type, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" none "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(col: Color, noIm: none.type, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(col.name+" none "+sc.fs+" "+lr.att+" "+len.s)
     def apply(col: Color, noIm: none.type, sc: FixedScroll, len: CssLength, len2: CssLength) = prop(col.name+" none "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(col: Color, noIm: none.type, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" none "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, noIm: none.type, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" none "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, noIm: none.type, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" none "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, noIm: none.type, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" none "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, noIm: none.type, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" none "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(col: Color, noIm: none.type, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" none "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(col: Color, noIm: none.type, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" none "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(col: Color, noIm: none.type, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" none "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(col: Color, noIm: none.type, rep: Repetition, lr: LeftRight) = prop(col.name+" none "+rep.name+" "+lr.att)
     def apply(col: Color, noIm: none.type, rep: Repetition, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+tb.att)
     def apply(col: Color, noIm: none.type, rep: Repetition, len: CssLength) = prop(col.name+" none "+rep.name+" "+len.s)
-    def apply(col: Color, noIm: none.type, rep: Repetition, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, noIm: none.type, rep: Repetition, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+pc.text)
     def apply(col: Color, noIm: none.type, rep: Repetition, lr: LeftRight, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+lr.att+" "+tb.att)
     def apply(col: Color, noIm: none.type, rep: Repetition, len: CssLength, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+len.s+" "+tb.att)
-    def apply(col: Color, noIm: none.type, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, noIm: none.type, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+pc.text+" "+tb.att)
     def apply(col: Color, noIm: none.type, rep: Repetition, lr: LeftRight, len: CssLength) = prop(col.name+" none "+rep.name+" "+lr.att+" "+len.s)
     def apply(col: Color, noIm: none.type, rep: Repetition, len: CssLength, len2: CssLength) = prop(col.name+" none "+rep.name+" "+len.s+" "+len2.s)
-    def apply(col: Color, noIm: none.type, rep: Repetition, pc: CssPercent, len: CssLength) = prop(col.name+" none "+rep.name+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, noIm: none.type, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, noIm: none.type, rep: Repetition, len: CssLength, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, noIm: none.type, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(col.name+" none "+rep.name+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, noIm: none.type, rep: Repetition, pc: CssPercent, len: CssLength) = prop(col.name+" none "+rep.name+" "+pc.text+" "+len.s)
+    def apply(col: Color, noIm: none.type, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+lr.att+" "+pc.text)
+    def apply(col: Color, noIm: none.type, rep: Repetition, len: CssLength, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+len.s+" "+pc.text)
+    def apply(col: Color, noIm: none.type, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(col.name+" none "+rep.name+" "+pc.text+" "+pc2.text)
     def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+lr.att)
     def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+tb.att)
     def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+len.s)
-    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+pc.text)
     def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+lr.att+" "+len.s)
     def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength, len2: CssLength) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(col: Color, noIm: none.type, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" none "+rep.name+" "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(col: Color, uri: Link, lr: LeftRight) = prop(col.name+" "+url(uri)+" "+lr.att)
     def apply(col: Color, uri: Link, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+tb.att)
     def apply(col: Color, uri: Link, len: CssLength) = prop(col.name+" "+url(uri)+" "+len.s)
-    def apply(col: Color, uri: Link, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, uri: Link, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+pc.text)
     def apply(col: Color, uri: Link, lr: LeftRight, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+lr.att+" "+tb.att)
     def apply(col: Color, uri: Link, len: CssLength, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+len.s+" "+tb.att)
-    def apply(col: Color, uri: Link, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, uri: Link, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+pc.text+" "+tb.att)
     def apply(col: Color, uri: Link, lr: LeftRight, len: CssLength) = prop(col.name+" "+url(uri)+" "+lr.att+" "+len.s)
     def apply(col: Color, uri: Link, len: CssLength, len2: CssLength) = prop(col.name+" "+url(uri)+" "+len.s+" "+len2.s)
-    def apply(col: Color, uri: Link, pc: CssPercent, len: CssLength) = prop(col.name+" "+url(uri)+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, uri: Link, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, uri: Link, len: CssLength, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, uri: Link, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+url(uri)+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, uri: Link, pc: CssPercent, len: CssLength) = prop(col.name+" "+url(uri)+" "+pc.text+" "+len.s)
+    def apply(col: Color, uri: Link, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+lr.att+" "+pc.text)
+    def apply(col: Color, uri: Link, len: CssLength, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+len.s+" "+pc.text)
+    def apply(col: Color, uri: Link, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+url(uri)+" "+pc.text+" "+pc2.text)
     def apply(col: Color, uri: Link, sc: FixedScroll, lr: LeftRight) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+lr.att)
     def apply(col: Color, uri: Link, sc: FixedScroll, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+tb.att)
     def apply(col: Color, uri: Link, sc: FixedScroll, len: CssLength) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+len.s)
-    def apply(col: Color, uri: Link, sc: FixedScroll, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, uri: Link, sc: FixedScroll, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+pc.text)
     def apply(col: Color, uri: Link, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(col: Color, uri: Link, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(col: Color, uri: Link, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, uri: Link, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(col: Color, uri: Link, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+lr.att+" "+len.s)
     def apply(col: Color, uri: Link, sc: FixedScroll, len: CssLength, len2: CssLength) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(col: Color, uri: Link, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, uri: Link, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, uri: Link, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, uri: Link, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, uri: Link, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(col: Color, uri: Link, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(col: Color, uri: Link, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(col: Color, uri: Link, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+url(uri)+" "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(col: Color, uri: Link, rep: Repetition, lr: LeftRight) = prop(col.name+" "+url(uri)+" "+rep.name+" "+lr.att)
     def apply(col: Color, uri: Link, rep: Repetition, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+tb.att)
     def apply(col: Color, uri: Link, rep: Repetition, len: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+len.s)
-    def apply(col: Color, uri: Link, rep: Repetition, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, uri: Link, rep: Repetition, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+pc.text)
     def apply(col: Color, uri: Link, rep: Repetition, lr: LeftRight, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+lr.att+" "+tb.att)
     def apply(col: Color, uri: Link, rep: Repetition, len: CssLength, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+len.s+" "+tb.att)
-    def apply(col: Color, uri: Link, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, uri: Link, rep: Repetition, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+pc.text+" "+tb.att)
     def apply(col: Color, uri: Link, rep: Repetition, lr: LeftRight, len: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+lr.att+" "+len.s)
     def apply(col: Color, uri: Link, rep: Repetition, len: CssLength, len2: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+len.s+" "+len2.s)
-    def apply(col: Color, uri: Link, rep: Repetition, pc: CssPercent, len: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, uri: Link, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, uri: Link, rep: Repetition, len: CssLength, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, uri: Link, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, uri: Link, rep: Repetition, pc: CssPercent, len: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+pc.text+" "+len.s)
+    def apply(col: Color, uri: Link, rep: Repetition, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+lr.att+" "+pc.text)
+    def apply(col: Color, uri: Link, rep: Repetition, len: CssLength, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+len.s+" "+pc.text)
+    def apply(col: Color, uri: Link, rep: Repetition, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+pc.text+" "+pc2.text)
     def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att)
     def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+tb.att)
     def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+len.s)
-    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"%")
+    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+pc.text)
     def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att+" "+tb.att)
     def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+len.s+" "+tb.att)
-    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+tb.att)
+    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, tb: TopBottom) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+pc.text+" "+tb.att)
     def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight, len: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att+" "+len.s)
     def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength, len2: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+len.s+" "+len2.s)
-    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+len.s)
-    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, len: CssLength) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+pc.text+" "+len.s)
+    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, lr: LeftRight, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+lr.att+" "+pc.text)
+    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, len: CssLength, pc: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+len.s+" "+pc.text)
+    def apply(col: Color, uri: Link, rep: Repetition, sc: FixedScroll, pc: CssPercent, pc2: CssPercent) = prop(col.name+" "+url(uri)+" "+rep.name+" "+sc.fs+" "+pc.text+" "+pc2.text)
     def apply(sc: FixedScroll) = prop(sc.fs)
     def apply(rep: Repetition) = prop(rep.name)
     def apply(rep: Repetition, sc: FixedScroll) = prop(rep.name+" "+sc.fs)
@@ -720,16 +721,16 @@ trait Css1 extends CssTypes {
     def apply(lr: LeftRight) = prop(lr.att)
     def apply(tb: TopBottom) = prop(tb.att)
     def apply(len: CssLength) = prop(len.s)
-    def apply(pc: CssPercent) = prop(pc(Int.MaxValue)+"%")
+    def apply(pc: CssPercent) = prop(pc.text)
     def apply(lr: LeftRight, tb: TopBottom) = prop(lr.att+" "+tb.att)
     def apply(len: CssLength, tb: TopBottom) = prop(len.s+" "+tb.att)
-    def apply(pc: CssPercent, tb: TopBottom) = prop(pc(Int.MaxValue)+"% "+tb.att)
+    def apply(pc: CssPercent, tb: TopBottom) = prop(pc.text+" "+tb.att)
     def apply(lr: LeftRight, len: CssLength) = prop(lr.att+" "+len.s)
     def apply(len: CssLength, len2: CssLength) = prop(len.s+" "+len2.s)
-    def apply(pc: CssPercent, len: CssLength) = prop(pc(Int.MaxValue)+"% "+len.s)
-    def apply(lr: LeftRight, pc: CssPercent) = prop(lr.att+" "+pc(Int.MaxValue)+"%")
-    def apply(len: CssLength, pc: CssPercent) = prop(len.s+" "+pc(Int.MaxValue)+"%")
-    def apply(pc: CssPercent, pc2: CssPercent) = prop(pc(Int.MaxValue)+"% "+pc2(Int.MaxValue)+"%")
+    def apply(pc: CssPercent, len: CssLength) = prop(pc.text+" "+len.s)
+    def apply(lr: LeftRight, pc: CssPercent) = prop(lr.att+" "+pc.text)
+    def apply(len: CssLength, pc: CssPercent) = prop(len.s+" "+pc.text)
+    def apply(pc: CssPercent, pc2: CssPercent) = prop(pc.text+" "+pc2.text)
   }
   val backgroundRepeat = new CssAttribute("background-repeat") with RepetitionVal
   
@@ -795,8 +796,8 @@ trait Css1 extends CssTypes {
     def apply(th: Thickness, th2: Thickness, th3: Thickness, th4: Thickness) = prop(th.name+" "+th2.name+" "+th3.name+" "+th4.name)
   }
 
-  val height = new CssAttribute("height") with CssLengthVal with CssPercentVal with AutoVal
-  val width = new CssAttribute("width") with CssLengthVal with CssPercentVal with AutoVal
+  val height = new BaseCssAttribute with CssLengthVal with CssPercentVal with AutoVal { def att = "height" }
+  val width = new BaseCssAttribute with CssLengthVal with CssPercentVal with AutoVal { def att = "width" }
   
   // FIXME: implement
   val font = new CssAttribute("font")
@@ -818,7 +819,7 @@ trait Css1 extends CssTypes {
   val clear = new CssAttribute("clear") with ClearOptVal with NoneVal
   val display = new CssAttribute("display") with DisplayVal with NoneVal
   val float = new CssAttribute("float") with FloatOptVal
-  val color = new CssAttribute("color") with ColorVal
+  val color = new BaseCssAttribute with ColorVal { def att = "color" }
   val letterSpacing = new CssAttribute("letter-spacing") with NormalVal with CssLengthVal
   val lineHeight = new CssAttribute("line-height") with NormalVal with CssLengthVal with CssPercentVal
   val textAlign = new CssAttribute("text-align") {
@@ -842,7 +843,7 @@ trait Css2 extends Css1 {
   val maxWidth = new CssAttribute("max-width")
   val minHeight = new CssAttribute("min-height")
   val minWidth = new CssAttribute("min-width")
-  val content = new CssAttribute("content")
+  val content = new BaseCssAttribute { def att = "content" }
   val counterIncrement = new CssAttribute("counter-increment")
   val counterReset = new CssAttribute("counter-reset")
   val quotes = new CssAttribute("quotes")
@@ -942,7 +943,7 @@ trait Css3 extends Css2 {
   val pagePolicy = new CssAttribute("page-policy")
   val gridColumns = new CssAttribute("grid-columns")
   val gridRows = new CssAttribute("grid-rows")
-  val target = new CssAttribute("target")
+  val target = new BaseCssAttribute { def att = "target" }
   val targetName = new CssAttribute("target-name")
   val targetNew = new CssAttribute("target-new")
   val targetPosition = new CssAttribute("target-position")
@@ -980,12 +981,12 @@ trait Css3 extends Css2 {
   val fitPosition = new CssAttribute("fit-position")
   val imageOrientation = new CssAttribute("image-orientation")
   val page = new CssAttribute("page")
-  val size = new CssAttribute("size")
+  val size = new BaseCssAttribute { def att = "size" }
   val rubyAlign = new CssAttribute("ruby-align")
   val rubyOverhang = new CssAttribute("ruby-overhang")
   val rubyPosition = new CssAttribute("ruby-position")
   val rubySpan = new CssAttribute("ruby-span")
-  val mark = new CssAttribute("mark")
+  val mark = new BaseCssAttribute { def att = "mark" }
   val markAfter = new CssAttribute("mark-after")
   val markBefore = new CssAttribute("mark-before")
   val phonemes = new CssAttribute("phonemes")
@@ -1022,7 +1023,7 @@ trait Css3 extends Css2 {
   val transitionDelay = new CssAttribute("transition-delay")
   val appearance = new CssAttribute("appearance")
   val boxSizing = new CssAttribute("box-sizing")
-  val icon = new CssAttribute("icon")
+  val icon = new BaseCssAttribute { def att = "icon" }
   val navDown = new CssAttribute("nav-down")
   val navIndex = new CssAttribute("nav-index")
   val navLeft = new CssAttribute("nav-left")

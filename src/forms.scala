@@ -252,8 +252,9 @@ object Forms extends Widgets with Parsers {
     }
     
     implicit def radioListRenderer[T, Q] = new Renderer[T, Field[T], RadioList[Q]] {
+      import Css._
       def render(f: Field[T], w: RadioList[Q]): Html5.Element[Html5.Phrasing] =
-        span(style -> "display: inline-block")(
+        span(style -> display(inlineBlock))(
           w.options flatMap { opt => List(
             span(
               input(`type` -> radio, Html5.name -> f.name, value -> w.id(opt),
