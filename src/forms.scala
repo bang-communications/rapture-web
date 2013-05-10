@@ -215,49 +215,48 @@ object Forms extends Widgets with Parsers {
       new Field[T](name, label, cell, implicitly[FieldParser[T]], process, validate, required, help,
           implicitly[FieldParser[T]].needsMultipart)
     
-    import Html5._
+    import HtmlCss._
 
-    type RenderType = Element[Phrasing]
+    type RenderType = HtmlCss.Element[Phrasing]
 
     implicit val stringRenderer = new Renderer[String, Field[String], StringInput] {
-      def render(f: Field[String], w: StringInput): Html5.Element[Html5.Phrasing] =
-        input(Html5.name -> f.name, Html5.value -> f.fieldValue)
+      def render(f: Field[String], w: StringInput): HtmlCss.Element[HtmlCss.Phrasing] =
+        input(HtmlCss.name -> f.name, HtmlCss.value -> f.fieldValue)
     }
 
     implicit val uploadRenderer = new Renderer[Array[Byte], Field[Array[Byte]], FileUploader] {
-      def render(f: Field[Array[Byte]], w: FileUploader): Html5.Element[Html5.Phrasing] =
-        input(Html5.name -> f.name, Html5.`type` -> Html5.file, Html5.value -> f.fieldValue)
+      def render(f: Field[Array[Byte]], w: FileUploader): HtmlCss.Element[HtmlCss.Phrasing] =
+        input(HtmlCss.name -> f.name, HtmlCss.`type` -> HtmlCss.file, HtmlCss.value -> f.fieldValue)
     }
 
     implicit val checkboxRenderer = new Renderer[Boolean, Field[Boolean], Checkbox] {
       override def hideLabel = true
-      def render(f: Field[Boolean], w: Checkbox): Html5.Element[Html5.Phrasing] =
+      def render(f: Field[Boolean], w: Checkbox): HtmlCss.Element[HtmlCss.Phrasing] =
         label(
-          input(Html5.`type` -> checkbox, Html5.value -> "1", Html5.name -> f.name,
+          input(HtmlCss.`type` -> checkbox, HtmlCss.value -> "1", HtmlCss.name -> f.name,
               if(f.value.getOrElse(false)) Some(checked) else None),
           " "+f.label
         )
     }
 
     implicit val textareaRenderer = new Renderer[String, Field[String], TextArea] {
-      def render(f: Field[String], w: TextArea): Html5.Element[Html5.Phrasing] =
-        textarea(Html5.name -> f.name, w.maxLength.map(Html5.maxlength -> _))(f.fieldValue)
+      def render(f: Field[String], w: TextArea): HtmlCss.Element[HtmlCss.Phrasing] =
+        textarea(HtmlCss.name -> f.name, w.maxLength.map(HtmlCss.maxlength -> _))(f.fieldValue)
     }
     
     implicit def dropdownRenderer[T, Q] = new Renderer[T, Field[T], Dropdown[Q]] {
-      def render(f: Field[T], w: Dropdown[Q]): Html5.Element[Html5.Phrasing] =
-        select(Html5.name -> f.name)(
+      def render(f: Field[T], w: Dropdown[Q]): HtmlCss.Element[HtmlCss.Phrasing] =
+        select(HtmlCss.name -> f.name)(
           w.options map { opt => option(value -> w.id(opt))(w.description(opt)) }
         )
     }
     
     implicit def radioListRenderer[T, Q] = new Renderer[T, Field[T], RadioList[Q]] {
-      import Css._
-      def render(f: Field[T], w: RadioList[Q]): Html5.Element[Html5.Phrasing] =
+      def render(f: Field[T], w: RadioList[Q]): HtmlCss.Element[HtmlCss.Phrasing] =
         span(style -> display(inlineBlock))(
           w.options flatMap { opt => List(
             span(
-              input(`type` -> radio, Html5.name -> f.name, value -> w.id(opt),
+              input(`type` -> radio, HtmlCss.name -> f.name, value -> w.id(opt),
                   if(w.id(opt) == f.fieldValue) Some(checked) else None),
               " "+w.description(opt),
               br
@@ -267,14 +266,14 @@ object Forms extends Widgets with Parsers {
     }
 
     implicit val hiddenRenderer = new Renderer[String, Field[String], Hidden] {
-      def render(f: Field[String], w: Hidden): Html5.Element[Html5.Phrasing] =
-        input(Html5.`type` -> Html5.hidden, Html5.name -> f.name, Html5.value -> f.fieldValue)
+      def render(f: Field[String], w: Hidden): HtmlCss.Element[HtmlCss.Phrasing] =
+        input(HtmlCss.`type` -> HtmlCss.hidden, HtmlCss.name -> f.name, HtmlCss.value -> f.fieldValue)
     }
   }
 
   trait TabularLayout { this: (WebForm with TabularLayout) =>
 
-    import Html5._
+    import HtmlCss._
 
     type FormPart = Element[TrItems]
     type RenderedForm = Element[Flow]
@@ -294,7 +293,7 @@ object Forms extends Widgets with Parsers {
       )
 
     def render: RenderedForm =
-      form(enctype -> encType, Html5.action -> action, Html5.method -> method)(
+      form(enctype -> encType, HtmlCss.action -> action, HtmlCss.method -> method)(
         table(
           tbody(
             formParts.toList,
@@ -312,7 +311,7 @@ object Forms extends Widgets with Parsers {
     )
 
     def submitButton: Element[Flow] =
-      input(Html5.name -> Symbol(formName+"_submit"), value -> submitButtonText, `type` -> submit)
+      input(HtmlCss.name -> Symbol(formName+"_submit"), value -> submitButtonText, `type` -> submit)
 
   }
 }

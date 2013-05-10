@@ -23,7 +23,7 @@ package rapture.web
 import rapture.io._
 
 // Implementation of draft spec from about 2009. Not up to date.
-class Html5 extends ElementClasses with HtmlDefs with AttributeClasses with Serialization {
+class Html5 extends ElementClasses with HtmlDefs with AttributeClasses with Serialization { this: HtmlCss.type =>
 
   val id = new AttributeKey[Symbol, GlobalAttributes]("id")
   
@@ -87,7 +87,7 @@ class Html5 extends ElementClasses with HtmlDefs with AttributeClasses with Seri
   val charset = new AttributeKey[String, MetaAttributes with ScriptAttributes]("charset")
   
   val style = new Tag[Text, Metadata with Flow, GlobalAttributes]("style") with
-      BaseAttributeKey[Css.Properties, GlobalAttributes] { val key = "style" }
+      BaseAttributeKey[HtmlCss.Properties, GlobalAttributes] { val key = "style" }
   
   val scoped = new AttributeKey[String, StyleAttributes]("scoped")
   
@@ -487,9 +487,9 @@ class Html5 extends ElementClasses with HtmlDefs with AttributeClasses with Seri
 
 }
 
-object Html5 extends Html5
+//object Html5 extends Html5
 
-object Html extends Html5 with Css3 {
+object HtmlCss extends Html5 with Css3 {
   override val target = new AttributeKey[String, BaseAttributes with LinkAttributes with AAttributes with
       AreaAttributes with FormAttributes with InputAttributes with ButtonAttributes]("target") with BaseCssAttribute {
     val att = "target"

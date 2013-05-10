@@ -22,7 +22,7 @@ package rapture.web
 
 import rapture.io._
 
-trait Css {
+trait Css { this: HtmlCss.type =>
 
   trait AttType { def string: String }
 
@@ -40,13 +40,14 @@ trait Css {
   case class Properties(props: List[Property]) {
     override def toString = props.reverse.map(_.short).mkString(";")
     def +(properties: Properties) = Properties(properties.props ::: props)
+    def unary_! = new Properties(props.map(!_))
   }
   implicit def propertyToProperties(prop: Property) = Properties(List(prop))
 
   class Property(att: String, value: String) {
     override def toString = att+": "+value
     def short = att+":"+value
-    def unary_! = new Properties(List(new Property(att, value+" !important")))
+    def unary_! = new Property(att, value+" !important")
   }
 
   trait CssAttributeStringable[T] { def string(t: T): String }
@@ -55,7 +56,7 @@ trait Css {
 
   trait BaseCssAttribute {
     def att: String
-    def prop(v: String) = new Properties(List(new Property(att, v)))
+    def prop(vs: String*) = new Properties(List(new Property(att, vs.mkString(" "))))
   }
   class CssAttribute(val att: String) extends BaseCssAttribute {
     def apply(i: inherit.type): Properties = prop("inherit")
@@ -127,10 +128,10 @@ trait Css {
 
 }
 
-trait CssTypes extends Css {
+trait CssTypes extends Css { this: HtmlCss.type =>
 
   class FixedScroll(val fs: String)
-  object fixed extends FixedScroll("fixed")
+  object fixed extends FixedScroll("fixed") with Position { def name = "fixed" }
   object scroll extends FixedScroll("scroll")
   trait FixedScrollVal extends BaseCssAttribute { def apply(v: FixedScroll) = prop(v.fs) }
 
@@ -247,9 +248,10 @@ trait CssTypes extends Css {
   trait BorderStyleVal extends BaseCssAttribute { def apply(bs: BorderStyle) = prop(bs.name) }
 
 
-  trait BorderOptions extends BaseCssAttribute {
+  trait BorderOptions extends BaseCssAttribute with NoneVal {
     def apply(len: CssLength) = prop(len.s)
     def apply(th: Thickness) = prop(th.name)
+    def apply(col: Color) = prop(col.name)
     def apply(len: CssLength, st: BorderStyle) = prop(len.s+" "+st.name)
     def apply(th: Thickness, st: BorderStyle) = prop(th.name+" "+st.name)
     def apply(len: CssLength, col: Color) = prop(len.s+" "+col.name)
@@ -375,9 +377,15 @@ trait CssTypes extends Css {
   val preWrap = new Whitespace { def name = "pre-wrap" }
   trait WhitespaceVal extends BaseCssAttribute { def apply(v: Whitespace) = prop(v.name) }
 
+  trait Position { def name: String }
+  val static = new Position { def name = "static" }
+  val absolute = new Position { def name = "absolute" }
+  val relative = new Position { def name = "relative" }
+  trait PositionVal extends BaseCssAttribute { def apply(v: Position) = prop(v.name) }
+
 }
 
-trait Css1 extends CssTypes {
+trait Css1 extends CssTypes { this: HtmlCss.type =>
   val background = new CssAttribute("background") with UriVal {
     def apply(lr: LeftRight) = prop(lr.att)
     def apply(tb: TopBottom) = prop(tb.att)
@@ -744,7 +752,7 @@ trait Css1 extends CssTypes {
   val borderBottomStyle = new CssAttribute("border-bottom-style") with BorderStyleVal
   val borderBottomWidth = new CssAttribute("border-bottom-width") with CssLengthVal with ThicknessVal
   val borderColor = new CssAttribute("border-color") with ColorVal with FourColorVal
-  val borderLeft = new CssAttribute("border-left") with CssLengthVal with ThicknessVal
+  val borderLeft = new CssAttribute("border-left") with BorderOptions
   val borderLeftColor = new CssAttribute("border-left-color") with ColorVal
   val borderLeftStyle = new CssAttribute("border-left-style") with BorderStyleVal
   val borderLeftWidth = new CssAttribute("border-left-width") with CssLengthVal with ThicknessVal
@@ -834,15 +842,27 @@ trait Css1 extends CssTypes {
   val wordSpacing = new CssAttribute("word-spacing") with NormalVal with CssLengthVal
 }
 
-trait Css2 extends Css1 {
-  val outline = new CssAttribute("outline")
-  val outlineColor = new CssAttribute("outline-color")
-  val outlineStyle = new CssAttribute("outline-style")
-  val outlineWidth = new CssAttribute("outline-width")
-  val maxHeight = new CssAttribute("max-height")
-  val maxWidth = new CssAttribute("max-width")
-  val minHeight = new CssAttribute("min-height")
-  val minWidth = new CssAttribute("min-width")
+trait Css2 extends Css1 { this: HtmlCss.type =>
+  val outline = new CssAttribute("outline") {
+    def apply(color: Color) = prop(color.name)
+    def apply(style: BorderStyle) = prop(style.name)
+    def apply(color: Color, style: BorderStyle) = prop(color.name, style.name)
+    def apply(width: Thickness) = prop(width.name)
+    def apply(width: CssLength) = prop(width.s)
+    def apply(color: Color, width: Thickness) = prop(color.name, width.name)
+    def apply(style: BorderStyle, width: Thickness) = prop(style.name, width.name)
+    def apply(color: Color, style: BorderStyle, width: Thickness) = prop(color.name, style.name, width.name)
+    def apply(color: Color, width: CssLength) = prop(color.name, width.s)
+    def apply(style: BorderStyle, width: CssLength) = prop(style.name, width.s)
+    def apply(color: Color, style: BorderStyle, width: CssLength) = prop(color.name, style.name, width.s)
+  }
+  val outlineColor = new CssAttribute("outline-color") with ColorVal
+  val outlineStyle = new CssAttribute("outline-style") with BorderStyleVal
+  val outlineWidth = new CssAttribute("outline-width") with CssLengthVal with ThicknessVal
+  val maxHeight = new CssAttribute("max-height") with CssLengthVal with CssPercentVal
+  val maxWidth = new CssAttribute("max-width") with CssLengthVal with CssPercentVal
+  val minHeight = new CssAttribute("min-height") with CssLengthVal with CssPercentVal
+  val minWidth = new CssAttribute("min-width") with CssLengthVal with CssPercentVal
   val content = new BaseCssAttribute { def att = "content" }
   val counterIncrement = new CssAttribute("counter-increment")
   val counterReset = new CssAttribute("counter-reset")
@@ -864,13 +884,13 @@ trait Css2 extends Css1 {
   val bottom = new CssAttribute("bottom") with TopBottom with VerticalAlign
   val clip = new CssAttribute("clip")
   val cursor = new CssAttribute("cursor")
-  val left = new CssAttribute("left") with LeftRight with ClearOpt with FloatOpt { def name = "left" }
+  val left = new CssAttribute("left") with LeftRight with ClearOpt with FloatOpt with CssLengthVal with CssPercentVal with AutoVal { def name = "left" }
   val overflow = new CssAttribute("overflow")
-  val position = new CssAttribute("position")
-  val right = new CssAttribute("right") with LeftRight with ClearOpt with FloatOpt { def name = "right" }
+  val position = new CssAttribute("position") with PositionVal
+  val right = new CssAttribute("right") with LeftRight with ClearOpt with FloatOpt with CssLengthVal with CssPercentVal with AutoVal { def name = "right" }
   val top = new CssAttribute("top") with TopBottom with VerticalAlign
   val visibility = new CssAttribute("visibility")
-  val zIndex = new CssAttribute("z-index")
+  val zIndex = new CssAttribute("z-index") with IntVal
   val orphans = new CssAttribute("orphans")
   val pageBreakAfter = new CssAttribute("page-break-after")
   val pageBreakBefore = new CssAttribute("page-break-before")
@@ -885,7 +905,7 @@ trait Css2 extends Css1 {
   val unicodeBidi = new CssAttribute("unicode-bidi")
 }
 
-trait Css3 extends Css2 {
+trait Css3 extends Css2 { this: HtmlCss.type =>
   val animation = new CssAttribute("animation")
   val animationName = new CssAttribute("animation-name")
   val animationDuration = new CssAttribute("animation-duration")
@@ -1033,4 +1053,3 @@ trait Css3 extends Css2 {
   val resize = new CssAttribute("resize")
 }
 
-object Css extends Css3

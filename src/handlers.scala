@@ -24,6 +24,8 @@ import scala.xml._
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.ListMap
 
+import scala.concurrent._
+
 import javax.servlet.http._
 
 import rapture.io._
@@ -83,8 +85,8 @@ trait RequestHandlers extends LpRequestHandlers { this: HttpServer =>
     })
   }
   
-  implicit def cssHandler(implicit enc: Encodings.Encoding) = new Handler[Css.Stylesheet] {
-    def response(css: Css.Stylesheet) = StreamResponse(200, Response.NoCache,
+  implicit def cssHandler(implicit enc: Encodings.Encoding) = new Handler[HtmlCss.Stylesheet] {
+    def response(css: HtmlCss.Stylesheet) = StreamResponse(200, Response.NoCache,
         MimeTypes.`text/css`, { os =>
       css.toString.input > os
       os.close()
@@ -112,6 +114,11 @@ trait RequestHandlers extends LpRequestHandlers { this: HttpServer =>
         file.extension.toList.flatMap(MimeTypes.extension).headOption.getOrElse(
 	      MimeTypes.`text/plain`), file)
   }
+
+  implicit def futureHandler[T](implicit h: Handler[T], ec: ExecutionContext): Handler[Future[T]] =
+    new Handler[Future[T]] {
+      def response(future: Future[T]) = h.response(Await.result(future, duration.Duration.Inf))
+    }
 
   implicit val nullHandler = new Handler[Response] { def response(r: Response) = r }
 

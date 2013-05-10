@@ -28,8 +28,8 @@ object Layout {
   import MimeTypes._
 
   trait PageMetadata { page: Page =>
-    override def metas: List[Html5.Element[Html5.Metadata]] =
-      (metaData.toList map { case (k, v) => Html5.meta(Html5.name -> k, Html5.content -> v)() }) :::
+    override def metas: List[HtmlCss.Element[HtmlCss.Metadata]] =
+      (metaData.toList map { case (k, v) => HtmlCss.meta(HtmlCss.name -> k, HtmlCss.content -> v)() }) :::
           page.metas
     
     def metaData: Map[Symbol, String] = Map(
@@ -47,16 +47,16 @@ object Layout {
     def jQueryUiLocation = Http / "ajax.googleapis.com" / "ajax" / "libs" / "jqueryui" / "1.8.23" /
         "jquery-ui.min.js"
     
-    override def scripts: List[Html5.Element[Html5.Metadata]] =
-      Html5.script(Html5.scriptType -> `text/javascript`, Html5.src -> Link(jQueryUiLocation.schemeSpecificPart)) :: super.scripts
+    override def scripts: List[HtmlCss.Element[HtmlCss.Metadata]] =
+      HtmlCss.script(HtmlCss.scriptType -> `text/javascript`, HtmlCss.src -> Link(jQueryUiLocation.schemeSpecificPart)) :: super.scripts
   }
 
   trait JQuery extends Page {
 
     def jQueryLocation: HttpUrl = Http / "ajax.googleapis.com" / "ajax" / "libs" / "jquery" / "1.7.2" / "jquery.min.js"
 
-    override def scripts: List[Html5.Element[Html5.Metadata]] =
-      Html5.script(Html5.scriptType -> `text/javascript`, Html5.src -> Link(jQueryLocation.schemeSpecificPart)) :: super.scripts
+    override def scripts: List[HtmlCss.Element[HtmlCss.Metadata]] =
+      HtmlCss.script(HtmlCss.scriptType -> `text/javascript`, HtmlCss.src -> Link(jQueryLocation.schemeSpecificPart)) :: super.scripts
   }
 
   abstract class Page { page =>
@@ -71,22 +71,22 @@ object Layout {
     def lang: String = "en"
     def title: String
 
-    def links: List[Html5.Element[Html5.Metadata]] =
-      stylesheets map { ss => Html5.link(Html5.rel -> "stylesheet", Html5.href -> ss.link)() }
+    def links: List[HtmlCss.Element[HtmlCss.Metadata]] =
+      stylesheets map { ss => HtmlCss.link(HtmlCss.rel -> "stylesheet", HtmlCss.href -> ss.link)() }
     
-    def scripts: List[Html5.Element[Html5.Metadata]] = Nil
-    def styles: List[Html5.Element[Html5.Metadata]] = Nil
-    def metas: List[Html5.Element[Html5.Metadata]] = Nil
+    def scripts: List[HtmlCss.Element[HtmlCss.Metadata]] = Nil
+    def styles: List[HtmlCss.Element[HtmlCss.Metadata]] = Nil
+    def metas: List[HtmlCss.Element[HtmlCss.Metadata]] = Nil
 
     def head =
-      Html5.title(page.title) :: styles.reverse ::: links.reverse ::: scripts.reverse ::: metas
+      HtmlCss.title(page.title) :: styles.reverse ::: links.reverse ::: scripts.reverse ::: metas
 
-    def body: List[Html5.Element[Html5.Flow]]
+    def body: List[HtmlCss.Element[HtmlCss.Flow]]
 
     def document =
-      Html5.html(Html5.lang -> page.lang)(
-        Html5.head(page.head: _*),
-        Html5.body(page.body: _*)
+      HtmlCss.html(HtmlCss.lang -> page.lang)(
+        HtmlCss.head(page.head: _*),
+        HtmlCss.body(page.body: _*)
       )
 
     def stream: Input[Char] = {
@@ -101,20 +101,20 @@ object Layout {
    
     def bootstrapLocation = Http / "twitter.github.com" / "bootstrap" / "1.4.0" / "bootstrap.min.css"
 
-    override def links: List[Html5.Element[Html5.Metadata]] =
-      Html5.link(Html5.rel -> "stylesheet", Html5.href -> bootstrapLocation)() :: super.links
+    override def links: List[HtmlCss.Element[HtmlCss.Metadata]] =
+      HtmlCss.link(HtmlCss.rel -> "stylesheet", HtmlCss.href -> bootstrapLocation)() :: super.links
 
   }
 
   import Forms._
-  import Html5._
+  import HtmlCss._
    
   trait TinyMce extends Page {
 
     def tinyMceLocation: Link
 
-    override def scripts: List[Html5.Element[Html5.Metadata]] =
-      Html5.script(Html5.scriptType -> `text/javascript`, Html5.src -> tinyMceLocation)() :: super.links
+    override def scripts: List[HtmlCss.Element[HtmlCss.Metadata]] =
+      HtmlCss.script(HtmlCss.scriptType -> `text/javascript`, HtmlCss.src -> tinyMceLocation)() :: super.links
  
   }
   
@@ -122,9 +122,8 @@ object Layout {
 
     implicit val tinyMceEditorRenderer =
       new Renderer[String, Field[String], HtmlEditor] {
-        import Css._
         def render(f: Field[String], w: HtmlEditor) =
-          textarea(style -> width(100%%), Html5.name -> f.name, cls -> "mceEditorCustom")(raw(f.fieldValue))
+          textarea(style -> width(100%%), HtmlCss.name -> f.name, cls -> "mceEditorCustom")(raw(f.fieldValue))
       }
   }
   
