@@ -95,10 +95,11 @@ trait HttpServer extends DelayedInit with Servlets with RequestHandlers with Req
     /* This is implemented imperatively so as to avoid needing to make it tail-recursive */
     def handle(r: WebRequest): Response = try {
       var result: Option[Response] = None
-      var hs = handlers
-      while(result.isEmpty && !hs.isEmpty) {
-        result = hs.head(r)
-        hs = hs.tail
+      var i = 0
+      val max = handlers.length
+      while(result.isEmpty && i < max) {
+        result = handlers(i)(r)
+        i += 1
       }
       result.getOrElse(notFoundHandler.map(_(r)).getOrElse(notFound(r)))
     } catch { case e: Throwable => error(r, e) }
