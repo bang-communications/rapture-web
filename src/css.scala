@@ -808,7 +808,9 @@ trait Css1 extends CssTypes { this: HtmlCss.type =>
   val width = new BaseCssAttribute with CssLengthVal with CssPercentVal with AutoVal { def att = "width" }
   
   // FIXME: implement
-  val font = new CssAttribute("font")
+  val font = new CssAttribute("font") {
+    
+  }
   val fontFamily = new CssAttribute("font-family") with FontFamilyVal
   val fontSize = new CssAttribute("font-size") with CssLengthVal with CssPercentVal with FontSizeVal
   val fontStyle = new CssAttribute("font-style") with FontStyleVal
@@ -863,6 +865,9 @@ trait Css2 extends Css1 { this: HtmlCss.type =>
   val maxWidth = new CssAttribute("max-width") with CssLengthVal with CssPercentVal
   val minHeight = new CssAttribute("min-height") with CssLengthVal with CssPercentVal
   val minWidth = new CssAttribute("min-width") with CssLengthVal with CssPercentVal
+  
+  // -----
+  
   val content = new BaseCssAttribute { def att = "content" }
   val counterIncrement = new CssAttribute("counter-increment")
   val counterReset = new CssAttribute("counter-reset")

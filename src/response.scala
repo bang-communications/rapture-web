@@ -58,3 +58,6 @@ case class FileResponse(code: Int, headers: Seq[(String, String)],
 case class RedirectResponse(headers: Seq[(String, String)], location: String) extends Response {
   final def code = 302
 }
+
+case class Cached[T](toCache: T, lastModified: Time.DateTime)
+case class Attachment[T](original: T, filename: String)

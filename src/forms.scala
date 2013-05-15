@@ -221,7 +221,12 @@ object Forms extends Widgets with Parsers {
 
     implicit val stringRenderer = new Renderer[String, Field[String], StringInput] {
       def render(f: Field[String], w: StringInput): HtmlCss.Element[HtmlCss.Phrasing] =
-        input(HtmlCss.name -> f.name, HtmlCss.value -> f.fieldValue)
+        input(HtmlCss.name -> f.name, `type` -> text, HtmlCss.value -> f.fieldValue)
+    }
+
+    implicit val passwordRenderer = new Renderer[String, Field[String], PasswordInput] {
+      def render(f: Field[String], w: PasswordInput): HtmlCss.Element[HtmlCss.Phrasing] =
+        input(HtmlCss.name -> f.name, `type` -> password, HtmlCss.value -> f.fieldValue)
     }
 
     implicit val uploadRenderer = new Renderer[Array[Byte], Field[Array[Byte]], FileUploader] {
@@ -269,6 +274,39 @@ object Forms extends Widgets with Parsers {
       def render(f: Field[String], w: Hidden): HtmlCss.Element[HtmlCss.Phrasing] =
         input(HtmlCss.`type` -> HtmlCss.hidden, HtmlCss.name -> f.name, HtmlCss.value -> f.fieldValue)
     }
+  }
+
+  class BootstrapForm(name: Symbol, params: Map[String, String] = Map(),
+      uploads: Map[String, Array[Byte]] = Map(), method: HttpMethods.FormMethod = HttpMethods.Post,
+      action: Link = ^) extends WebForm(name, params, uploads, method, action) with FormValidation {
+    import HtmlCss._
+
+    type FormPart = Element[Flow]
+    type RenderedForm = Element[Flow]
+
+    def hideLabels = false
+
+    def wrap[T, F <: Field[T], W <: Widget](field: F, widget: W)
+        (implicit renderer: Renderer[T, F, W]): FormPart =
+      div(cls -> ("control-group"+(if(!field.validationIssues.isEmpty) " error" else "")))(
+        label(cls -> "control-label"/*, forName -> field.name.name*/)(field.label),
+        div(cls -> "controls")(
+          renderer.render(field, widget), " ",
+          field.validationIssues map { i => span(cls -> "help-inline")(i+" ") }
+        )
+      )
+  
+    def render: RenderedForm =
+      form(enctype -> encType, cls -> "form", HtmlCss.action -> action, HtmlCss.method -> method)(
+        fieldset(
+          formParts.toList,
+          submitRow
+        )
+      )
+
+    def submitRow = div(input(HtmlCss.name -> Symbol(formName+"_submit"), `type` -> submit, cls -> "btn btn-primary", value -> submitButtonText))
+
+    def submitButtonText = "Save"
   }
 
   trait TabularLayout { this: (WebForm with TabularLayout) =>

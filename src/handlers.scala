@@ -115,6 +115,50 @@ trait RequestHandlers extends LpRequestHandlers { this: HttpServer =>
 	      MimeTypes.`text/plain`), file)
   }
 
+  implicit def cacheHandler[T](implicit h: Handler[T]): Handler[Cached[T]] = new Handler[Cached[T]] {
+    def response(resp: Cached[T]) = {
+      val r = h.response(resp.toCache)
+      val dateFormat = Time.DateFormat("EEE, d MMM yyyy")
+      val timeFormat = Time.TimeFormat("HH:mm:ss z")
+      val lastModified = List("Last-modified" -> resp.lastModified.format(dateFormat, timeFormat))
+      r match {
+        case BufferResponse(code, headers, contentType, buffers) =>
+          BufferResponse(code, lastModified, contentType, buffers)
+        case sr@StreamResponse(code, headers, contentType, send) =>
+          StreamResponse(code, lastModified, contentType, send)(sr.encoding)
+        case ByteStreamResponse(code, headers, contentType, send) =>
+          ByteStreamResponse(code, lastModified, contentType, send)
+        case ErrorResponse(code, headers, message, detail) =>
+          ErrorResponse(code, lastModified, message, detail)
+        case FileResponse(code, headers, contentType, file) =>
+          FileResponse(code, lastModified, contentType, file)
+        case RedirectResponse(headers, location) =>
+          RedirectResponse(lastModified, location)
+      }
+    }
+  }
+
+  implicit def attachmentHandler[T](implicit h: Handler[T]): Handler[Attachment[T]] = new Handler[Attachment[T]] {
+    def response(resp: Attachment[T]) = {
+      val r = h.response(resp.original)
+      val headers = ("Content-Disposition" -> ("attachment; filename="+resp.filename)) :: r.headers.toList
+      r match {
+        case BufferResponse(code, headers, contentType, buffers) =>
+          BufferResponse(code, headers, contentType, buffers)
+        case sr@StreamResponse(code, headers, contentType, send) =>
+          StreamResponse(code, headers, contentType, send)(sr.encoding)
+        case ByteStreamResponse(code, headers, contentType, send) =>
+          ByteStreamResponse(code, headers, contentType, send)
+        case ErrorResponse(code, headers, message, detail) =>
+          ErrorResponse(code, headers, message, detail)
+        case FileResponse(code, headers, contentType, file) =>
+          FileResponse(code, headers, contentType, file)
+        case RedirectResponse(headers, location) =>
+          RedirectResponse(headers, location)
+      }
+    }
+  }
+
   implicit def futureHandler[T](implicit h: Handler[T], ec: ExecutionContext): Handler[Future[T]] =
     new Handler[Future[T]] {
       def response(future: Future[T]) = h.response(Await.result(future, duration.Duration.Inf))

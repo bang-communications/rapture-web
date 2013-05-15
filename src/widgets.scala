@@ -32,6 +32,7 @@ trait Widgets {
   case class TextArea(width: Int = 8, height: Int = 80, maxLength: Option[Int] = None) extends Widget
   case class HtmlEditor() extends Widget
   case class StringInput() extends Widget
+  case class PasswordInput() extends Widget
   case class FileUploader() extends Widget
   case class Checkbox() extends Widget
   case class Hidden() extends Widget
