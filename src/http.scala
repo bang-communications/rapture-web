@@ -84,7 +84,7 @@ trait HttpServer extends DelayedInit with Servlets with RequestHandlers with Req
   protected[web] val stopTasks = new ListBuffer[() => Unit]
   protected[web] val startTasks = new ListBuffer[() => Unit]
 
-  protected var handlers: List[PartialFunction[WebRequest, Response]] = Nil
+  protected var handlers: Vector[WebRequest => Option[Response]] = Vector()
   protected var errorHandler: Option[PartialFunction[(WebRequest, Throwable), Response]] = None
   protected var notFoundHandler: Option[PartialFunction[WebRequest, Response]] = None
 
@@ -92,14 +92,15 @@ trait HttpServer extends DelayedInit with Servlets with RequestHandlers with Req
   
   class HttpServletWrapper extends ServletWrapper {
 
-    /** FIXME: This is not tail-recursive. */
+    /* This is implemented imperatively so as to avoid needing to make it tail-recursive */
     def handle(r: WebRequest): Response = try {
-      yCombinator[(List[PartialFunction[WebRequest, Response]], WebRequest), Response] { f =>
-        _._1 match {
-          case Nil => notFoundHandler.map(_(r)).getOrElse(notFound(r))
-          case h :: t => h.applyOrElse(r, (g: WebRequest) => f(t -> g))
-        }
-      } (handlers -> r)
+      var result: Option[Response] = None
+      var hs = handlers
+      while(result.isEmpty && !hs.isEmpty) {
+        result = hs.head(r)
+        hs = hs.tail
+      }
+      result.getOrElse(notFoundHandler.map(_(r)).getOrElse(notFound(r)))
     } catch { case e: Throwable => error(r, e) }
   }
 
@@ -107,7 +108,7 @@ trait HttpServer extends DelayedInit with Servlets with RequestHandlers with Req
  
   /** Method to allow registration of handlers for requests matching different conditions */
   def handle[T](fn: PartialFunction[WebRequest, T])(implicit handler: Handler[T]) =
-    handlers ::= { fn andThen handler.response }
+    handlers = handlers :+ (fn andThen handler.response).lift
 
   def respond[T](t: T)(implicit handler: Handler[T]) = handler.response(t)
 
