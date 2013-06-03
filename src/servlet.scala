@@ -21,7 +21,7 @@ License.
 
 package rapture.web
 
-import rapture.io.{log => rlog, _}
+import rapture.io.{log => rlog, Cookie => _, _}
 
 import scala.collection.mutable.{Map => _, _}
 
