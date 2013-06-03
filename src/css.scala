@@ -383,6 +383,29 @@ trait CssTypes extends Css { this: HtmlCss.type =>
   val relative = new Position { def name = "relative" }
   trait PositionVal extends BaseCssAttribute { def apply(v: Position) = prop(v.name) }
 
+  trait ListStyleType { def name: String }
+  val armenian = new ListStyleType { def name = "armenian" }
+  val circle = new ListStyleType { def name = "circle" }
+  val cjkIdeographic = new ListStyleType { def name = "cjk-ideographic" }
+  val decimal = new ListStyleType { def name = "decimal" }
+  val decimalLeadingZero = new ListStyleType { def name = "decimal-leading-zero" }
+  val disc = new ListStyleType { def name = "disc" }
+  val georgian = new ListStyleType { def name = "georgian" }
+  val hebrew = new ListStyleType { def name = "hebrew" }
+  val hiragana = new ListStyleType { def name = "hiragana" }
+  val hiraganaIroha = new ListStyleType { def name = "hiragana-iroha" }
+  val katakana = new ListStyleType { def name = "katakana" }
+  val katakanaIroha = new ListStyleType { def name = "katakana-iroha" }
+  val lowerAlpha = new ListStyleType { def name = "lower-alpha" }
+  val lowerGreek = new ListStyleType { def name = "lower-greek" }
+  val lowerLatin = new ListStyleType { def name = "lower-latin" }
+  val lowerRoman = new ListStyleType { def name = "lower-roman" }
+  val square = new ListStyleType { def name = "square" }
+  val upperAlpha = new ListStyleType { def name = "upper-alpha" }
+  val upperLatin = new ListStyleType { def name = "upper-latin" }
+  val upperRoman = new ListStyleType { def name = "upper-roman" }
+  trait ListStyleTypeVal extends BaseCssAttribute { def apply(v: ListStyleType) = prop(v.name) }
+
 }
 
 trait Css1 extends CssTypes { this: HtmlCss.type =>
@@ -875,7 +898,7 @@ trait Css2 extends Css1 { this: HtmlCss.type =>
   val listStyle = new CssAttribute("list-style")
   val listStyleImage = new CssAttribute("list-style-image")
   val listStylePosition = new CssAttribute("list-style-position")
-  val listStyleType = new CssAttribute("list-style-type")
+  val listStyleType = new CssAttribute("list-style-type") with ListStyleTypeVal with NoneVal
   val margin = new CssAttribute("margin") with CssLengthVal {
     def apply(len1: CssLength, len2: CssLength) = prop(len1.s+" "+len2.s)
     def apply(len1: CssLength, len2: CssLength, len3: CssLength) = prop(len1.s+" "+len2.s+" "+len3.s)
@@ -927,7 +950,7 @@ trait Css3 extends Css2 { this: HtmlCss.type =>
   val borderImageSlice = new CssAttribute("border-image-slice")
   val borderImageSource = new CssAttribute("border-image-source")
   val borderImageWidth = new CssAttribute("border-image-width")
-  val borderRadius = new CssAttribute("border-radius")
+  val borderRadius = new CssAttribute("border-radius") with CssLengthVal with CssPercentVal
   val borderTopLeftRadius = new CssAttribute("border-top-left-radius")
   val borderTopRightRadius = new CssAttribute("border-top-right-radius")
   val boxDecorationBreak = new CssAttribute("box-decoration-break")

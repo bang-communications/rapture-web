@@ -57,6 +57,8 @@ object Forms extends Widgets with Parsers {
       def parser: FieldParser[T]
       def cell: Cell[T]
       def save(): Unit = value foreach { c => if(cell == null) () else cell.update(c) }
+    
+      override def toString = s"${fieldName}: value=${value}"
     }
   }
 
@@ -79,6 +81,8 @@ object Forms extends Widgets with Parsers {
       def validated: Boolean = validationIssues.isEmpty
       def validator: Option[String] => List[String]
       def required: Boolean
+      
+      override def toString = s"${fieldName}: value=${value}, validated=${validated}, required=${required}, validator=${validator}, parser=${parser}, cell=${cell}, paramValue=${paramValue}"
     }
  
     // String validators
@@ -276,7 +280,7 @@ object Forms extends Widgets with Parsers {
     }
   }
 
-  class BootstrapForm(name: Symbol, params: Map[String, String] = Map(),
+  class BootstrapForm(name: Symbol, params: Map[String, String],
       uploads: Map[String, Array[Byte]] = Map(), method: HttpMethods.FormMethod = HttpMethods.Post,
       action: Link = ^) extends WebForm(name, params, uploads, method, action) with FormValidation {
     import HtmlCss._

@@ -130,7 +130,7 @@ abstract class Request {
     var cs = scala.collection.immutable.Map[String, String]()
     headers.get("cookie") match {
       case Some(Seq(v)) =>
-      val vs = v.split("; ")
+      val vs = v.split("; ?")
       for(v <- vs) {
         val kv = v.split("=", 2) 
         if(kv.length == 2) cs = cs + (kv(0).urlDecode -> kv(1).urlDecode)
