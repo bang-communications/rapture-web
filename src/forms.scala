@@ -124,8 +124,8 @@ object Forms extends Widgets with Parsers {
       case None => Nil
     }
     
-    val notEmpty: Option[String] => List[String] = {
-      case Some(s) => if(s.isEmpty) List("Value is required and can't be empty.") else Nil
+    def notEmpty(msg: String = "Value is required and can't be empty."): Option[String] => List[String] = {
+      case Some(s) => if(s.isEmpty) List(msg) else Nil
       case None => Nil
     }
     
