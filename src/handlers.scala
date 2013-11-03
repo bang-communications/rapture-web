@@ -29,6 +29,10 @@ import scala.concurrent._
 import javax.servlet.http._
 
 import rapture.io._
+import rapture.core._
+import rapture.time._
+import rapture.json._
+import rapture.fs._
 
 import strategy.throwExceptions
 
@@ -118,8 +122,8 @@ trait RequestHandlers extends LpRequestHandlers { this: HttpServer =>
   implicit def cacheHandler[T](implicit h: Handler[T]): Handler[Cached[T]] = new Handler[Cached[T]] {
     def response(resp: Cached[T]) = {
       val r = h.response(resp.toCache)
-      val dateFormat = Time.DateFormat("EEE, d MMM yyyy")
-      val timeFormat = Time.TimeFormat("HH:mm:ss z")
+      val dateFormat = DateFormat("EEE, d MMM yyyy")
+      val timeFormat = TimeFormat("HH:mm:ss z")
       val lastModified = List("Last-modified" -> resp.lastModified.format(dateFormat, timeFormat))
       r match {
         case BufferResponse(code, headers, contentType, buffers) =>

@@ -20,10 +20,13 @@ License.
 ***************************************************************************************************/
 package rapture.web
 
+import scala.language.higherKinds
+
 import rapture.io._
+import rapture.time._
+import rapture.core._
 
 import scala.collection.mutable.ListBuffer
-import Time._
 
 object Forms extends Widgets with Parsers {
 

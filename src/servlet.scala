@@ -22,6 +22,7 @@ License.
 package rapture.web
 
 import rapture.io.{log => rlog, Cookie => _, _}
+import rapture.core._
 
 import scala.collection.mutable.{Map => _, _}
 
@@ -51,7 +52,7 @@ trait Servlets { this: HttpServer =>
     lazy val url = req.getRequestURL.toString
     def basePathString = req.getContextPath
     def servicePathString = req.getServletPath
-    def remainderString = req.getPathInfo.fromNull.getOrElse("")
+    def remainderString = Option(req.getPathInfo).getOrElse("")
     
     def uploadSizeLimit = 50*1024*1024
     private var uploadsValue: Map[String, Array[Byte]] = Map[String, Array[Byte]]()
@@ -71,7 +72,7 @@ trait Servlets { this: HttpServer =>
             if(m.filename.isDefined) {
               uploadsValue += stripQuotes(m.name.get) -> m.data
               params(stripQuotes(m.name.get)) = stripQuotes(m.filename.get)
-            } else params(stripQuotes(m.name.get)) = new String(m.data, req.getCharacterEncoding.fromNull.getOrElse("ASCII"))
+            } else params(stripQuotes(m.name.get)) = new String(m.data, Option(req.getCharacterEncoding).getOrElse("ASCII"))
           }
         }
         params.toMap

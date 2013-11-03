@@ -23,6 +23,8 @@ import java.nio._
 import java.io._
 
 import rapture.io._
+import rapture.fs._
+import rapture.time._
 
 /** A collection of standard response-related objects. */
 object Response {
@@ -59,5 +61,5 @@ case class RedirectResponse(headers: Seq[(String, String)], location: String) ex
   final def code = 302
 }
 
-case class Cached[T](toCache: T, lastModified: Time.DateTime)
+case class Cached[T](toCache: T, lastModified: DateTime)
 case class Attachment[T](original: T, filename: String)

@@ -25,7 +25,7 @@ import language._
 import scala.collection.mutable.{HashMap, ListBuffer}
 import java.io._
 import rapture.io._
-import Time._
+import rapture.time._
 
 
 object Request {

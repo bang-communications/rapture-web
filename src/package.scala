@@ -21,6 +21,6 @@ License.
 package rapture
 
 package object web {
-  //implicit val implicitConversions = scala.language.implicitConversions
-  //implicit val postfixOps = scala.language.postfixOps
+  implicit val implicitConversions = scala.language.implicitConversions
+  implicit val postfixOps = scala.language.postfixOps
 }

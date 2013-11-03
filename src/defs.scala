@@ -21,7 +21,6 @@ License.
 package rapture.web
 
 import rapture.io._
-import language.implicitConversions
 
 // This is a mess.
 trait HtmlDefs { this: Html5 =>
