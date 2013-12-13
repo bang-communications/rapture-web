@@ -21,6 +21,7 @@ License.
 package rapture.web
 
 import rapture.io._
+import rapture.net._
 
 // This is a mess.
 trait HtmlDefs { this: Html5 =>

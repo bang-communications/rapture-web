@@ -21,6 +21,7 @@ License.
 package rapture.web
 
 import rapture.io._
+import rapture.net._
 
 // Implementation of draft spec from about 2009. Not up to date.
 class Html5 extends ElementClasses with HtmlDefs with AttributeClasses with Serialization { this: HtmlCss.type =>

@@ -25,6 +25,7 @@ import scala.language.higherKinds
 import rapture.io._
 import rapture.time._
 import rapture.core._
+import rapture.net._
 
 import scala.collection.mutable.ListBuffer
 

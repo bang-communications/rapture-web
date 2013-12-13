@@ -22,6 +22,7 @@ package rapture.web
 
 import rapture.io._
 import rapture.core._
+import rapture.net._
 import strategy.throwExceptions
 
 object Layout {
