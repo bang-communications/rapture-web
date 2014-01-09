@@ -1,4 +1,2 @@
-Bundle-Classpath: .
-Bundle-Name: Rapture Web Libraries
-Bundle-Version: 0.6.0
-Bundle-SymbolicName: web
+Manifest-Version: 1.0
+Main-Class: rapture.core.Main

@@ -22,6 +22,8 @@ package rapture.web
 
 import rapture.io._
 
+import language.implicitConversions
+
 trait Css { this: HtmlCss.type =>
 
   trait AttType { def string: String }

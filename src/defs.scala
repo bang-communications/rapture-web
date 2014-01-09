@@ -22,6 +22,9 @@ package rapture.web
 
 import rapture.io._
 import rapture.net._
+import rapture.core._
+
+import language.postfixOps
 
 // This is a mess.
 trait HtmlDefs { this: Html5 =>
@@ -68,7 +71,7 @@ trait HtmlDefs { this: Html5 =>
   implicit def stringableToElement[T: Stringable](s: T) = new Element[Text] {
     override def serialize(sb: StringBuilder, n: Int, indent: Boolean) = {
       if(indent) sb.append("  "*n)
-      sb.append((if(s == null) "null" else implicitly[Stringable[T]].string(s)).replaceAll("&", "&amp;").replaceAll("<", "&lt;"))
+      sb.append((if(s == null) "null" else ?[Stringable[T]].string(s)).replaceAll("&", "&amp;").replaceAll("<", "&lt;"))
     }
   }
 

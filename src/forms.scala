@@ -220,8 +220,8 @@ object Forms extends Widgets with Parsers {
     def field[T: FieldParser](name: Symbol, label: String, cell: Cell[T] = null,
         process: (String => String) = identity[String], validate: Option[String] => List[String] = { s =>
         Nil }, required: Boolean = false, help: String = "") =
-      new Field[T](name, label, cell, implicitly[FieldParser[T]], process, validate, required, help,
-          implicitly[FieldParser[T]].needsMultipart)
+      new Field[T](name, label, cell, ?[FieldParser[T]], process, validate, required, help,
+          ?[FieldParser[T]].needsMultipart)
     
     import HtmlCss._
 

@@ -27,6 +27,7 @@ import scala.collection.mutable.ListMap
 import javax.servlet.http._
 
 import rapture.io._
+import rapture.core._
 
 case class InitializationException(subject: String, message: String) extends RuntimeException
 
@@ -118,14 +119,14 @@ trait HttpServer extends DelayedInit with Servlets with RequestHandlers with Req
       def andThenGoto[S: Handler](s: S): Response =
         if(f.complete) {
           f.save()
-          implicitly[Handler[S]].response(s)
-        } else implicitly[Handler[T]].response(p1(f))
+          ?[Handler[S]].response(s)
+        } else ?[Handler[T]].response(p1(f))
 
       def andThen[S: Handler](p2: F => S): Response =
         if(f.complete) {
           f.save()
-          implicitly[Handler[S]].response(p2(f))
-        } else implicitly[Handler[T]].response(p1(f))
+          ?[Handler[S]].response(p2(f))
+        } else ?[Handler[T]].response(p1(f))
     }
   }
 

@@ -37,9 +37,9 @@ import strategy.throwExceptions
 trait Servlets { this: HttpServer =>
   class BasicRequest(req: HttpServletRequest, resp: HttpServletResponse) extends Request {
     def contentType = {
-      val ct = req.getContentType
-      val ct2 = if(ct == null) "application/x-www-form-urlencoded" else ct.split(";").head
-      MimeTypes.fromString(ct2).getOrElse(MimeTypes.MimeType(ct2))
+      val ct = Option(req.getContentType) getOrElse "application/x-www-form-urlencoded"
+      val ct2 = ct.split(";").head
+      MimeTypes.unapply(ct2).getOrElse(MimeTypes.MimeType(ct2))
     }
 
 
