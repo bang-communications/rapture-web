@@ -35,7 +35,7 @@ trait Serialization { this: Html5 =>
         sb.append(k)
         if(v != "") {
           sb.append("=\"")
-          sb.append(v)
+          scala.xml.Utility.escape(v, sb)
           sb.append("\"")
         }
       }
@@ -66,7 +66,7 @@ trait Serialization { this: Html5 =>
         if(v != "") {
           sb.append(k)
           sb.append("=\"")
-          sb.append(v)
+          scala.xml.Utility.escape(v, sb)
           sb.append("\"")
         }
       }
